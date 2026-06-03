@@ -1,0 +1,82 @@
+# Environment Variables & Secrets (敏感資訊)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+*.pub
+credentials.json
+client_secret*.json
+*.p12
+*.pfx
+secrets.*
+
+# OS Metadata & System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs & Editors
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*~
+
+# Package Manager & Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+.npm/
+.yarn/
+.pnpm-store/
+bun.lockb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+out/
+build/
+.next/
+.nuxt/
+.docusaurus/
+.svelte-kit/
+.turbo/
+
+# Spec-Kit / Gemini (僅忽略本地快取與暫存日誌，保留配置與模板)
+.specify/local/
+.specify/*.log
+.gemini/local/
+.gemini/*.log
