@@ -30,7 +30,7 @@ export default function ClosedCases() {
           <div className="relative">
             <input
               type="text"
-              placeholder="搜尋已結案案號、姓名、督導姓名..."
+              placeholder="搜尋已結案案號、姓名、個管員姓名..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="rounded-lg border border-slate-250 pl-3 pr-8 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 shadow-inner"
@@ -133,8 +133,12 @@ export default function ClosedCases() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 block">主責督導</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 block">主責個管</span>
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.supervisor}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 block">區域</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.area || '未設區'}</span>
                 </div>
               </div>
 

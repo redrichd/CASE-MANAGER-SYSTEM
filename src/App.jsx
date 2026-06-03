@@ -22,7 +22,7 @@ function AppContent() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-[#1e3a8a] tracking-wide m-0">
-            長照派案時效管控系統
+            悠康照顧計劃管理系統
           </h1>
         </div>
       </div>
@@ -82,7 +82,7 @@ function AppContent() {
         <div className="flex items-center justify-center gap-1">
           <span>長照個案派案管理系統 © 2026</span>
           <span>|</span>
-          <span>用愛守護長者生命價值</span>
+          <span>悠康守護，跨齡照顧</span>
           <Heart className="w-3 h-3 text-red-500 fill-red-500 inline" />
         </div>
       </footer>

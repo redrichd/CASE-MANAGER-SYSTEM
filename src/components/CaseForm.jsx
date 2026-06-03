@@ -12,9 +12,10 @@ export default function CaseForm({ activeCase, onClose }) {
   const { units } = useUnits();
 
   // 表單欄位狀態 - 直接從 activeCase 初始化
-  const [id] = useState(() => activeCase?.id || `FL${Math.floor(10000000 + Math.random() * 90000000)}`);
+  const [id, setId] = useState(activeCase?.id || '');
   const [name, setName] = useState(activeCase?.name || '');
   const [gender, setGender] = useState(activeCase?.gender || 'M');
+  const [area, setArea] = useState(activeCase?.area || '新莊區');
   const [supervisor, setSupervisor] = useState(activeCase?.supervisor || '');
   const [superApprovalDate, setSuperApprovalDate] = useState(activeCase?.superApprovalDate || '');
   const [approvalDate, setApprovalDate] = useState(activeCase?.approvalDate || '');
@@ -96,7 +97,7 @@ export default function CaseForm({ activeCase, onClose }) {
     if (e) e.preventDefault();
 
     if (!id || !name || !supervisor) {
-      alert('請填寫必填欄位 (案號、姓名、督導)！');
+      alert('請填寫必填欄位 (案號、姓名、個管員)！');
       return;
     }
 
@@ -132,6 +133,7 @@ export default function CaseForm({ activeCase, onClose }) {
       name,
       gender,
       supervisor,
+      area,
       date: activeCase ? activeCase.date : new Date().toLocaleDateString('zh-TW'),
       superApprovalDate,
       approvalDate,
@@ -212,7 +214,22 @@ export default function CaseForm({ activeCase, onClose }) {
                 一、個案基本資料
               </h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  區域
+                </label>
+                <select
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="新莊區">新莊區</option>
+                  <option value="三蘆區">三蘆區</option>
+                  <option value="板中永區">板中永區</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
                   案主姓名
@@ -247,16 +264,22 @@ export default function CaseForm({ activeCase, onClose }) {
                 </label>
                 <input
                   type="text"
+                  required
                   value={id}
-                  readOnly
-                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                  onChange={(e) => setId(e.target.value)}
+                  readOnly={!!activeCase}
+                  className={`w-full rounded-lg border px-3 py-1.5 text-sm ${
+                    activeCase 
+                      ? 'border-slate-200 bg-slate-50 text-slate-500 cursor-not-allowed' 
+                      : 'border-slate-250 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500'
+                  }`}
                   placeholder="例: FL20093001"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  個管員 / 主責督導
+                  個管員
                 </label>
                 <input
                   type="text"
@@ -264,7 +287,7 @@ export default function CaseForm({ activeCase, onClose }) {
                   value={supervisor}
                   onChange={(e) => setSupervisor(e.target.value)}
                   className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="請輸入督導姓名"
+                  placeholder="請輸入個管員姓名"
                 />
               </div>
             </div>

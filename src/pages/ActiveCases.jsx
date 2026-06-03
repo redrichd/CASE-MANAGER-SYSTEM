@@ -10,11 +10,13 @@ export default function ActiveCases() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [confirmCloseId, setConfirmCloseId] = useState(null);
+  const [selectedArea, setSelectedArea] = useState('全部');
 
-  // 搜尋過濾：案號、姓名、督導
+  // 搜尋與區域過濾：案號、姓名、個管員
   const activeCasesList = cases.filter(
     (c) =>
       !c.isClosed &&
+      (selectedArea === '全部' || c.area === selectedArea) &&
       (c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.supervisor.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -46,6 +48,15 @@ export default function ActiveCases() {
     return datePart.replace(/-/g, '/');
   };
 
+  // 格式化日期時間為 YYYY/MM/DD HH:mm
+  const formatDateTime = (dateTimeStr) => {
+    if (!dateTimeStr) return '-';
+    const parts = dateTimeStr.split('T');
+    const datePart = parts[0].replace(/-/g, '/');
+    const timePart = parts[1] || '';
+    return `${datePart} ${timePart}`;
+  };
+
   return (
     <div className="space-y-6">
       
@@ -59,14 +70,20 @@ export default function ActiveCases() {
             <UserPlus className="w-4 h-4 text-blue-500" />
             新增個案
           </button>
-          <button
-            type="button"
-            onClick={() => alert('區域管理功能（依規格僅作 UI 呈現，不變更現有功能）')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition shadow-sm cursor-pointer"
-          >
-            <MapPin className="w-4 h-4 text-red-500" />
-            區域管理
-          </button>
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-lg text-sm shadow-sm">
+            <MapPin className="w-4 h-4 text-red-500 shrink-0" />
+            <span className="font-bold text-slate-650 shrink-0">區域篩選：</span>
+            <select
+              value={selectedArea}
+              onChange={(e) => setSelectedArea(e.target.value)}
+              className="border-none bg-transparent focus:outline-none font-bold text-slate-700 cursor-pointer text-sm"
+            >
+              <option value="全部">全部區域</option>
+              <option value="新莊區">新莊區</option>
+              <option value="三蘆區">三蘆區</option>
+              <option value="板中永區">板中永區</option>
+            </select>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
@@ -74,7 +91,7 @@ export default function ActiveCases() {
           <div className="relative">
             <input
               type="text"
-              placeholder="搜尋案號、姓名、督導姓名..."
+              placeholder="搜尋案號、姓名、個管員姓名..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="rounded-lg border border-slate-250 pl-3 pr-8 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-64 shadow-inner"
@@ -91,9 +108,11 @@ export default function ActiveCases() {
             <thead>
               <tr className="bg-[#f1f5f9] border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
                 <th className="px-6 py-3 w-20 text-center">功能</th>
+                <th className="px-6 py-3 w-28 text-center">區域</th>
                 <th className="px-6 py-3 w-36">案號</th>
                 <th className="px-6 py-3 w-40">姓名</th>
                 <th className="px-6 py-3">照專計畫通過日 (起日) *</th>
+                <th className="px-6 py-3 w-40">規定完成期限</th>
                 <th className="px-6 py-3 text-center w-32">時效狀態</th>
                 <th className="px-6 py-3 w-32">主責個管</th>
                 <th className="px-6 py-3 text-center w-28">基本作業</th>
@@ -102,7 +121,7 @@ export default function ActiveCases() {
             <tbody className="divide-y divide-slate-100 text-sm">
               {activeCasesList.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="9" className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之個案
                   </td>
                 </tr>
@@ -118,6 +137,13 @@ export default function ActiveCases() {
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
+                    </td>
+
+                    {/* 區域 */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-block px-2.5 py-1 bg-blue-50 text-[#1e3a8a] border border-blue-100 rounded-lg text-xs font-bold">
+                        {c.area || '未設區'}
+                      </span>
                     </td>
 
                     {/* 案號 */}
@@ -144,8 +170,13 @@ export default function ActiveCases() {
                     </td>
 
                     {/* 照專計畫通過日 (起日) * */}
-                    <td className="px-6 py-4 text-slate-600">
-                      {formatDate(c.approvalDate)}
+                    <td className="px-6 py-4 text-slate-600 font-mono">
+                      {formatDateTime(c.approvalDate)}
+                    </td>
+
+                    {/* 規定完成期限 */}
+                    <td className="px-6 py-4 font-mono text-slate-600 font-medium">
+                      {formatDateTime(c.deadlineDate)}
                     </td>
 
                     {/* 時效狀態 */}

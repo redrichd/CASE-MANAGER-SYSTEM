@@ -27,7 +27,7 @@ describe('App View Management & Searching', () => {
     expect(screen.getByText('王小明')).toBeInTheDocument();
 
     // 輸入搜尋關鍵字「張大同」
-    const searchInput = screen.getByPlaceholderText(/搜尋案號、姓名、督導姓名/);
+    const searchInput = screen.getByPlaceholderText(/搜尋案號、姓名、個管員姓名/);
     await act(async () => {
       fireEvent.change(searchInput, { target: { value: '張大同' } });
     });

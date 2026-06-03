@@ -19,12 +19,14 @@ describe('CaseForm Recent Dispatch Warning', () => {
     renderWithProviders(<CaseForm onClose={() => {}} />);
 
     // 填寫所有必填欄位 (包含 required 的 approvalDate)
+    const idInput = screen.getByPlaceholderText(/例: FL20093001/);
     const nameInput = screen.getByPlaceholderText(/請輸入姓名/);
-    const supervisorInput = screen.getByPlaceholderText(/請輸入督導姓名/);
+    const supervisorInput = screen.getByPlaceholderText(/請輸入個管員姓名/);
     const approvalInput = screen.getByLabelText(/照專計畫通過日\/起日/);
     
+    fireEvent.change(idInput, { target: { value: 'FL20093005' } });
     fireEvent.change(nameInput, { target: { value: '林大宇' } });
-    fireEvent.change(supervisorInput, { target: { value: '王督導' } });
+    fireEvent.change(supervisorInput, { target: { value: '王個管' } });
     fireEvent.change(approvalInput, { target: { value: '2026-06-01T10:00' } });
 
     // 選擇「大同居家照顧服務所」

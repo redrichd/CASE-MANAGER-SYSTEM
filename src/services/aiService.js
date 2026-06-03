@@ -37,7 +37,7 @@ export async function generateDispatchMessage(caseData) {
 案號：${caseData.id || '（未填）'}
 姓名：${caseData.name || '（未填）'}
 性別：${genderText}
-主責督導：${caseData.supervisor || '（未填）'}
+個管員：${caseData.supervisor || '（未填）'}
 服務內容：${caseData.serviceContent || '（未填）'}
 指派單位：${caseData.bUnitName || '（未填）'}
 照會日期：${caseData.aUnitNotifyDate || '（未填）'}
@@ -57,7 +57,7 @@ export async function generateDispatchMessage(caseData) {
     性別：${genderText}
     服務內容：${caseData.serviceContent}
     指派單位：${caseData.bUnitName}
-    主責督導：${caseData.supervisor}
+    個管員：${caseData.supervisor}
     照會日期：${caseData.aUnitNotifyDate}
     預計進場時效：${caseData.bUnitStartDate}`;
     
