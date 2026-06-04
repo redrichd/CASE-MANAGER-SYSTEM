@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
+import { db, isFirebaseConfigured } from '../services/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const CaseContext = createContext();
 
@@ -78,20 +80,70 @@ const initialCases = [
 export function CaseProvider({ children }) {
   const [cases, setCases] = useState(initialCases);
 
-  const addCase = (newCase) => {
+  useEffect(() => {
+    if (!isFirebaseConfigured()) return;
+
+    const fetchCases = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'cases'));
+        if (querySnapshot.empty) {
+          // Seed the database
+          for (const c of initialCases) {
+            await setDoc(doc(db, 'cases', c.id), c);
+          }
+          setCases(initialCases);
+        } else {
+          const fetchedCases = [];
+          querySnapshot.forEach((doc) => {
+            fetchedCases.push(doc.data());
+          });
+          // Sort by id or date to ensure a deterministic list order
+          fetchedCases.sort((a, b) => a.id.localeCompare(b.id));
+          setCases(fetchedCases);
+        }
+      } catch (error) {
+        console.error('Error fetching cases from Firestore:', error);
+      }
+    };
+
+    fetchCases();
+  }, []);
+
+  const addCase = async (newCase) => {
     setCases((prev) => [...prev, newCase]);
+    if (isFirebaseConfigured()) {
+      try {
+        await setDoc(doc(db, 'cases', newCase.id), newCase);
+      } catch (error) {
+        console.error('Error adding case to Firestore:', error);
+      }
+    }
   };
 
-  const updateCase = (id, updatedFields) => {
+  const updateCase = async (id, updatedFields) => {
     setCases((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updatedFields } : c))
     );
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'cases', id), updatedFields);
+      } catch (error) {
+        console.error('Error updating case in Firestore:', error);
+      }
+    }
   };
 
-  const closeCase = (id) => {
+  const closeCase = async (id) => {
     setCases((prev) =>
       prev.map((c) => (c.id === id ? { ...c, isClosed: true } : c))
     );
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'cases', id), { isClosed: true });
+      } catch (error) {
+        console.error('Error closing case in Firestore:', error);
+      }
+    }
   };
 
   return (

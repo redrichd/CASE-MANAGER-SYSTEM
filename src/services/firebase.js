@@ -3,7 +3,6 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAuth } from 'firebase/auth';
 
-// Firebase 配置資訊，從 Vite 環境變數讀取
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,12 +13,27 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// 初始化 Firebase
-const app = initializeApp(firebaseConfig);
+export const isFirebaseConfigured = () => {
+  return !!(firebaseConfig.projectId && firebaseConfig.apiKey);
+};
 
-// 導出服務實例
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const auth = getAuth(app);
+let app = null;
+let db = null;
+let storage = null;
+let auth = null;
 
+if (isFirebaseConfigured()) {
+  try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.warn('Firebase initialization failed:', error);
+  }
+} else {
+  console.log('Firebase is not configured. Running in local fallback mode.');
+}
+
+export { app, db, storage, auth };
 export default app;

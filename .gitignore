@@ -80,3 +80,7 @@ build/
 .specify/*.log
 .gemini/local/
 .gemini/*.log
+
+# Firebase local cache
+.firebase/
+

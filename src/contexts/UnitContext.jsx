@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
+import { db, isFirebaseConfigured } from '../services/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const UnitContext = createContext();
 
@@ -14,48 +16,131 @@ const initialUnits = [
 export function UnitProvider({ children }) {
   const [units, setUnits] = useState(initialUnits);
 
-  const toggleStopUnit = (id) => {
+  useEffect(() => {
+    if (!isFirebaseConfigured()) return;
+
+    const fetchUnits = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'units'));
+        if (querySnapshot.empty) {
+          // Seed the database
+          for (const u of initialUnits) {
+            await setDoc(doc(db, 'units', u.id), u);
+          }
+          setUnits(initialUnits);
+        } else {
+          const fetchedUnits = [];
+          querySnapshot.forEach((doc) => {
+            fetchedUnits.push(doc.data());
+          });
+          // Sort by id to ensure a deterministic list order
+          fetchedUnits.sort((a, b) => a.id.localeCompare(b.id));
+          setUnits(fetchedUnits);
+        }
+      } catch (error) {
+        console.error('Error fetching units from Firestore:', error);
+      }
+    };
+
+    fetchUnits();
+  }, []);
+
+  const toggleStopUnit = async (id) => {
+    let currentIsStopped = false;
     setUnits((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, isStopped: !u.isStopped } : u))
+      prev.map((u) => {
+        if (u.id === id) {
+          currentIsStopped = u.isStopped;
+          return { ...u, isStopped: !u.isStopped };
+        }
+        return u;
+      })
     );
+
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'units', id), { isStopped: !currentIsStopped });
+      } catch (error) {
+        console.error('Error toggling stop unit in Firestore:', error);
+      }
+    }
   };
 
-  const updateUnit = (id, updatedFields) => {
+  const updateUnit = async (id, updatedFields) => {
     setUnits((prev) =>
       prev.map((u) => (u.id === id ? { ...u, ...updatedFields } : u))
     );
+
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'units', id), updatedFields);
+      } catch (error) {
+        console.error('Error updating unit in Firestore:', error);
+      }
+    }
   };
 
-  const addUnit = (newUnit) => {
-    setUnits((prev) => [
-      ...prev,
-      {
-        ...newUnit,
-        id: `U${String(prev.length + 1).padStart(3, '0')}`,
-        isStopped: newUnit.isStopped || false,
-        comments: newUnit.comments || [],
-      },
-    ]);
+  const addUnit = async (newUnit) => {
+    const newId = `U${String(units.length + 1).padStart(3, '0')}`;
+    const formattedUnit = {
+      ...newUnit,
+      id: newId,
+      isStopped: newUnit.isStopped || false,
+      comments: newUnit.comments || [],
+      rating: newUnit.rating || 0,
+    };
+
+    setUnits((prev) => [...prev, formattedUnit]);
+
+    if (isFirebaseConfigured()) {
+      try {
+        await setDoc(doc(db, 'units', newId), formattedUnit);
+      } catch (error) {
+        console.error('Error adding unit to Firestore:', error);
+      }
+    }
   };
 
-  const addComment = (unitId, comment) => {
+  const addComment = async (unitId, comment) => {
+    let updatedComments = [];
     setUnits((prev) =>
-      prev.map((u) =>
-        u.id === unitId ? { ...u, comments: [...(u.comments || []), comment] } : u
-      )
+      prev.map((u) => {
+        if (u.id === unitId) {
+          updatedComments = [...(u.comments || []), comment];
+          return { ...u, comments: updatedComments };
+        }
+        return u;
+      })
     );
+
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'units', unitId), { comments: updatedComments });
+      } catch (error) {
+        console.error('Error adding comment to Firestore:', error);
+      }
+    }
   };
 
-  const updateComment = (unitId, commentIndex, updatedFields) => {
+  const updateComment = async (unitId, commentIndex, updatedFields) => {
+    let updatedComments = [];
     setUnits((prev) =>
       prev.map((u) => {
         if (u.id !== unitId) return u;
-        const newComments = (u.comments || []).map((c, i) =>
+        updatedComments = (u.comments || []).map((c, i) =>
           i === commentIndex ? { ...c, ...updatedFields } : c
         );
-        return { ...u, comments: newComments };
+        return { ...u, comments: updatedComments };
       })
     );
+
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'units', unitId), { comments: updatedComments });
+      } catch (error) {
+        console.error('Error updating comment in Firestore:', error);
+      }
+    }
   };
 
   return (
