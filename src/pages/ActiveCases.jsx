@@ -111,7 +111,7 @@ export default function ActiveCases() {
                 <th className="px-6 py-3 w-28 text-center">區域</th>
                 <th className="px-6 py-3 w-36">案號</th>
                 <th className="px-6 py-3 w-40">姓名</th>
-                <th className="px-6 py-3">照專計畫通過日 (起日) *</th>
+                <th className="px-6 py-3">計畫最初送審日 *</th>
                 <th className="px-6 py-3 w-40">規定完成期限</th>
                 <th className="px-6 py-3 text-center w-32">時效狀態</th>
                 <th className="px-6 py-3 w-32">主責個管</th>

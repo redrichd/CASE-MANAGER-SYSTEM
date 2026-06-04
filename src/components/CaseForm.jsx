@@ -6,6 +6,9 @@ import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { polishDelayReason, generateDispatchMessage } from '../services/aiService';
 import ConfirmDialog from './ConfirmDialog';
 import { Sparkles, Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus } from 'lucide-react';
+import { parsePastedDateTime } from '../utils/dateTimeParser';
+import UnitEditModal from './UnitEditModal';
+import { DISPATCH_TYPES, SERVICE_CONTENTS } from '../constants/dispatchConstants';
 
 export default function CaseForm({ activeCase, onClose }) {
   const { cases, addCase, updateCase } = useCases();
@@ -20,7 +23,7 @@ export default function CaseForm({ activeCase, onClose }) {
   const [superApprovalDate, setSuperApprovalDate] = useState(activeCase?.superApprovalDate || '');
   const [approvalDate, setApprovalDate] = useState(activeCase?.approvalDate || '');
   const [submitDate, setSubmitDate] = useState(activeCase?.submitDate || '');
-  const [dispatchType, setDispatchType] = useState(activeCase?.dispatchType || '新案');
+  const [dispatchType, setDispatchType] = useState(activeCase?.dispatchType || '新案_初評');
   const [serviceContent, setServiceContent] = useState(activeCase?.serviceContent || 'BA');
   const [bUnitName, setBUnitName] = useState(activeCase?.bUnitName || '');
   const [dispatchResult, setDispatchResult] = useState(activeCase?.dispatchResult || '');
@@ -35,6 +38,17 @@ export default function CaseForm({ activeCase, onClose }) {
   const [warningMsg, setWarningMsg] = useState('');
   const [showWarning, setShowWarning] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
+  const [editUnitOpen, setEditUnitOpen] = useState(false);
+
+  // 處理貼上日期/時間的自動解析
+  const handleDatePaste = (setter, type = 'datetime-local') => (e) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text');
+    const parsed = parsePastedDateTime(text, type);
+    if (parsed) {
+      setter(parsed);
+    }
+  };
 
   // 1. 在渲染時直接計算完成期限
   const deadlineDate = approvalDate ? calculateDeadline(approvalDate) : '';
@@ -307,13 +321,15 @@ export default function CaseForm({ activeCase, onClose }) {
               {/* Card 1 */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-[6px] border-[#8b5cf6]">
                 <label htmlFor="superApprovalDate" className="block text-xs font-bold text-indigo-900 mb-2">
-                  1. 照專督導核定通過日
+                  1. 初評第一次督導核定通過日
                 </label>
                 <input
                   id="superApprovalDate"
                   type="datetime-local"
+                  step="1"
                   value={superApprovalDate}
                   onChange={(e) => setSuperApprovalDate(e.target.value)}
+                  onPaste={handleDatePaste(setSuperApprovalDate, 'datetime-local')}
                   className="w-full border border-slate-250 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
                 />
               </div>
@@ -321,14 +337,16 @@ export default function CaseForm({ activeCase, onClose }) {
               {/* Card 2 */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-[6px] border-[#3b82f6]">
                 <label htmlFor="approvalDate" className="block text-xs font-bold text-blue-900 mb-2">
-                  2. 照專計畫通過日/起日 *
+                  2. 計畫最初送審日 *
                 </label>
                 <input
                   id="approvalDate"
                   type="datetime-local"
+                  step="1"
                   required
                   value={approvalDate}
                   onChange={(e) => setApprovalDate(e.target.value)}
+                  onPaste={handleDatePaste(setApprovalDate, 'datetime-local')}
                   className="w-full border border-slate-250 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#3b82f6]"
                 />
               </div>
@@ -346,13 +364,15 @@ export default function CaseForm({ activeCase, onClose }) {
               {/* Card 4 */}
               <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm border-l-[6px] border-[#64748b]">
                 <label htmlFor="submitDate" className="block text-xs font-bold text-slate-700 mb-2">
-                  4. 計畫送審/實際完成日 (A單位照會B單位日)
+                  4. 照顧計劃審核通過日
                 </label>
                 <input
                   id="submitDate"
                   type="datetime-local"
+                  step="1"
                   value={submitDate}
                   onChange={(e) => setSubmitDate(e.target.value)}
+                  onPaste={handleDatePaste(setSubmitDate, 'datetime-local')}
                   className="w-full border border-slate-250 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#64748b]"
                 />
               </div>
@@ -409,48 +429,61 @@ export default function CaseForm({ activeCase, onClose }) {
                   onChange={(e) => setDispatchType(e.target.value)}
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 >
-                  <option value="新案">新案</option>
-                  <option value="複評">複評</option>
+                  {DISPATCH_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  服務內容
-                </label>
-                <select
-                  value={serviceContent}
-                  onChange={(e) => {
-                    setServiceContent(e.target.value);
-                    setBUnitName(''); 
-                  }}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  <option value="BA">BA (居家照顧服務)</option>
-                  <option value="D">D (日間照顧服務)</option>
-                </select>
+                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                   服務內容
+                 </label>
+                 <select
+                   value={serviceContent}
+                   onChange={(e) => {
+                     setServiceContent(e.target.value);
+                     setBUnitName(''); 
+                   }}
+                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                 >
+                   {SERVICE_CONTENTS.map((sc) => (
+                     <option key={sc} value={sc}>{sc}</option>
+                   ))}
+                 </select>
               </div>
 
               <div>
                 <label htmlFor="bUnitName" className="block text-xs font-bold text-slate-650 mb-1.5">
                   指派 B 單位 (依公平輪排排序)
                 </label>
-                <select
-                  id="bUnitName"
-                  value={bUnitName}
-                  onChange={(e) => setBUnitName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  <option value="">-- 請選擇單位 --</option>
-                  {filteredSortedUnits.map((u) => {
-                    const statusText = u.successCount === 0 ? ' (首發單位)' : ` (輪派成功: ${u.successCount}次)`;
-                    return (
-                      <option key={u.id} value={u.name}>
-                        {u.name} {statusText}
-                      </option>
-                    );
-                  })}
-                </select>
+                <div className="flex gap-2 items-center">
+                  <select
+                    id="bUnitName"
+                    value={bUnitName}
+                    onChange={(e) => setBUnitName(e.target.value)}
+                    className="flex-1 rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="">-- 請選擇單位 --</option>
+                    {filteredSortedUnits.map((u) => {
+                      const statusText = u.successCount === 0 ? ' (首發單位)' : ` (輪派成功: ${u.successCount}次)`;
+                      return (
+                        <option key={u.id} value={u.name}>
+                          {u.name} {statusText}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {bUnitName && (
+                    <button
+                      type="button"
+                      onClick={() => setEditUnitOpen(true)}
+                      className="px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm shrink-0 cursor-pointer animate-in fade-in slide-in-from-right-2 duration-200"
+                    >
+                      編輯單位
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -483,6 +516,7 @@ export default function CaseForm({ activeCase, onClose }) {
                   type="date"
                   value={aUnitNotifyDate}
                   onChange={(e) => setAUnitNotifyDate(e.target.value)}
+                  onPaste={handleDatePaste(setAUnitNotifyDate, 'date')}
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
@@ -495,6 +529,7 @@ export default function CaseForm({ activeCase, onClose }) {
                   type="date"
                   value={bUnitStartDate}
                   onChange={(e) => setBUnitStartDate(e.target.value)}
+                  onPaste={handleDatePaste(setBUnitStartDate, 'date')}
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
@@ -572,6 +607,15 @@ export default function CaseForm({ activeCase, onClose }) {
         onConfirm={confirmDuplicateSave}
         onCancel={() => setShowWarning(false)}
       />
+
+      {/* 編輯單位模態框 */}
+      {bUnitName && editUnitOpen && (
+        <UnitEditModal
+          unit={units.find((u) => u.name === bUnitName)}
+          isOpen={editUnitOpen}
+          onClose={() => setEditUnitOpen(false)}
+        />
+      )}
     </div>
   );
 }

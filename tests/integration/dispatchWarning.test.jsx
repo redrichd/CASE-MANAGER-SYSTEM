@@ -22,7 +22,7 @@ describe('CaseForm Recent Dispatch Warning', () => {
     const idInput = screen.getByPlaceholderText(/例: FL20093001/);
     const nameInput = screen.getByPlaceholderText(/請輸入姓名/);
     const supervisorInput = screen.getByPlaceholderText(/請輸入個管員姓名/);
-    const approvalInput = screen.getByLabelText(/照專計畫通過日\/起日/);
+    const approvalInput = screen.getByLabelText(/計畫最初送審日/);
     
     fireEvent.change(idInput, { target: { value: 'FL20093005' } });
     fireEvent.change(nameInput, { target: { value: '林大宇' } });

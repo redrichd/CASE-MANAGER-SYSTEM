@@ -9,9 +9,9 @@
 | `name` | String | 個案姓名 | 必填 |
 | `gender` | String | 性別 | `'M'` 或 `'F'` |
 | `supervisor` | String | 督導/個管員姓名 | 必填 |
-| `approvalDate` | String | 照專計畫通過日/起日 | 格式 `YYYY-MM-DDTHH:mm` |
+| `approvalDate` | String | 計畫最初送審日 | 格式 `YYYY-MM-DDTHH:mm` |
 | `deadlineDate` | String | 系統規定完成期限 | 系統自動計算產出 |
-| `submitDate` | String | 實際完成日 | 格式 `YYYY-MM-DDTHH:mm` |
+| `submitDate` | String | 照顧計劃審核通過日 | 格式 `YYYY-MM-DDTHH:mm` |
 | `status` | String | 時效狀態 | `'時效內'` 或 `'超時效'` |
 | `delayReason` | String | 時效逾時說明 | 當 `status` 為 `'超時效'` 時必填 |
 | `dispatchType` | String | 派案類別 | `'新案'` 或 `'複評'` |

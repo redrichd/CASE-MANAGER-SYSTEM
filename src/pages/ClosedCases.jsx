@@ -146,7 +146,7 @@ export default function ClosedCases() {
 
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-400 dark:text-slate-500 text-xs">照專計畫通過起日：</span>
+                  <span className="text-slate-400 dark:text-slate-500 text-xs">計畫最初送審日：</span>
                   <span className="text-slate-700 dark:text-slate-300 text-xs">
                     {selectedCase.approvalDate ? selectedCase.approvalDate.replace('T', ' ') : '-'}
                   </span>
