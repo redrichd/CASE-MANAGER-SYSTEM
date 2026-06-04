@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
 import { useUnits } from '../contexts/UnitContext';
+import { useStaff } from '../contexts/StaffContext';
 import { calculateDeadline } from '../utils/deadlineCalculator';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { polishDelayReason, generateDispatchMessage } from '../services/aiService';
@@ -13,6 +14,7 @@ import { DISPATCH_TYPES, SERVICE_CONTENTS } from '../constants/dispatchConstants
 export default function CaseForm({ activeCase, onClose }) {
   const { cases, addCase, updateCase } = useCases();
   const { units } = useUnits();
+  const { staffList } = useStaff();
 
   // 表單欄位狀態 - 直接從 activeCase 初始化
   const [id, setId] = useState(activeCase?.id || '');
@@ -292,17 +294,26 @@ export default function CaseForm({ activeCase, onClose }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                <label htmlFor="supervisor" className="block text-xs font-bold text-slate-650 mb-1.5">
                   個管員
                 </label>
-                <input
-                  type="text"
+                <select
+                  id="supervisor"
                   required
                   value={supervisor}
                   onChange={(e) => setSupervisor(e.target.value)}
                   className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="請輸入個管員姓名"
-                />
+                >
+                  <option value="">-- 請選擇個管員 --</option>
+                  {staffList.map((s) => (
+                    <option key={s.empId} value={s.name}>
+                      {s.name} ({s.empId}) - {s.title}
+                    </option>
+                  ))}
+                  {supervisor && !staffList.some(s => s.name === supervisor) && (
+                    <option value={supervisor}>{supervisor} (外部/已離職)</option>
+                  )}
+                </select>
               </div>
             </div>
           </div>

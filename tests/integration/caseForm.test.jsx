@@ -3,12 +3,15 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import CaseForm from '../../src/components/CaseForm';
 import { CaseProvider } from '../../src/contexts/CaseContext';
 import { UnitProvider } from '../../src/contexts/UnitContext';
+import { StaffProvider } from '../../src/contexts/StaffContext';
 
 const renderWithProviders = (ui) => {
   return render(
     <CaseProvider>
       <UnitProvider>
-        {ui}
+        <StaffProvider>
+          {ui}
+        </StaffProvider>
       </UnitProvider>
     </CaseProvider>
   );

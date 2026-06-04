@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { CaseProvider } from './contexts/CaseContext';
 import { UnitProvider } from './contexts/UnitContext';
+import { StaffProvider } from './contexts/StaffContext';
 import ActiveCases from './pages/ActiveCases';
 import ClosedCases from './pages/ClosedCases';
 import Units from './pages/Units';
+import Staff from './pages/Staff';
 import { Heart } from 'lucide-react';
 import './App.css';
 
@@ -64,6 +66,17 @@ function AppContent() {
           >
             派案單位
           </button>
+          
+          <button
+            onClick={() => setActiveTab('staff')}
+            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+              activeTab === 'staff'
+                ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            人員資訊
+          </button>
         </div>
 
         {/* 分格線 */}
@@ -74,6 +87,7 @@ function AppContent() {
           {activeTab === 'activeCases' && <ActiveCases />}
           {activeTab === 'closedCases' && <ClosedCases />}
           {activeTab === 'units' && <Units />}
+          {activeTab === 'staff' && <Staff />}
         </div>
       </div>
 
@@ -97,7 +111,9 @@ export default function App() {
   return (
     <CaseProvider>
       <UnitProvider>
-        <AppContent />
+        <StaffProvider>
+          <AppContent />
+        </StaffProvider>
       </UnitProvider>
     </CaseProvider>
   );
