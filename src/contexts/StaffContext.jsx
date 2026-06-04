@@ -99,8 +99,39 @@ export function StaffProvider({ children }) {
     }
   };
 
+  const [areas, setAreas] = useState(['新莊區', '三蘆區', '板中永區']);
+
+  const addArea = (areaName) => {
+    if (!areaName.trim()) return;
+    setAreas((prev) => {
+      if (prev.includes(areaName.trim())) return prev;
+      return [...prev, areaName.trim()];
+    });
+  };
+
+  const deleteArea = async (areaName) => {
+    setAreas((prev) => prev.filter((a) => a !== areaName));
+    setStaffList((prev) =>
+      prev.map((s) => (s.area === areaName ? { ...s, area: '' } : s))
+    );
+
+    if (isFirebaseConfigured()) {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'staff'));
+        querySnapshot.forEach(async (d) => {
+          const data = d.data();
+          if (data.area === areaName) {
+            await updateDoc(doc(db, 'staff', data.empId), { area: '' });
+          }
+        });
+      } catch (error) {
+        console.error('Error updating staff documents in Firestore after area deletion:', error);
+      }
+    }
+  };
+
   return (
-    <StaffContext.Provider value={{ staffList, addStaff, updateStaff, deleteStaff }}>
+    <StaffContext.Provider value={{ staffList, addStaff, updateStaff, deleteStaff, areas, addArea, deleteArea }}>
       {children}
     </StaffContext.Provider>
   );

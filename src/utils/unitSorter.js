@@ -8,6 +8,18 @@ export function calculateUnitStats(units, cases) {
   const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
 
   return units.map((unit) => {
+    if (unit.overrideStats) {
+      return {
+        ...unit,
+        dispatchCount: typeof unit.overrideStats.dispatchCount === 'number' ? unit.overrideStats.dispatchCount : 0,
+        successCount: typeof unit.overrideStats.successCount === 'number' ? unit.overrideStats.successCount : 0,
+        designatedThis: typeof unit.overrideStats.designatedThis === 'number' ? unit.overrideStats.designatedThis : 0,
+        designatedOther: typeof unit.overrideStats.designatedOther === 'number' ? unit.overrideStats.designatedOther : 0,
+        stopCount: typeof unit.overrideStats.stopCount === 'number' ? unit.overrideStats.stopCount : 0,
+        latestSuccessTime: unit.overrideStats.latestSuccessTime || 0,
+      };
+    }
+
     const unitCases = cases.filter(
       (c) => c.bUnitName === unit.name && c.dispatchResult
     );

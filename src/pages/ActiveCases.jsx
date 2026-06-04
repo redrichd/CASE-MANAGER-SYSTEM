@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
+import { useStaff } from '../contexts/StaffContext';
 import CaseForm from '../components/CaseForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Search, UserPlus, Edit3, Archive, MapPin } from 'lucide-react';
 
 export default function ActiveCases() {
   const { cases, closeCase } = useCases();
+  const { staffList } = useStaff();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [confirmCloseId, setConfirmCloseId] = useState(null);
   const [selectedArea, setSelectedArea] = useState('全部');
+
+  // 獲取所有人員實際服務的區域以做動態篩選
+  const staffAreas = Array.from(new Set(staffList.map((s) => s.area).filter(Boolean)));
 
   // 搜尋與區域過濾：案號、姓名、個管員
   const activeCasesList = cases.filter(
@@ -79,9 +84,9 @@ export default function ActiveCases() {
               className="border-none bg-transparent focus:outline-none font-bold text-slate-700 cursor-pointer text-sm"
             >
               <option value="全部">全部區域</option>
-              <option value="新莊區">新莊區</option>
-              <option value="三蘆區">三蘆區</option>
-              <option value="板中永區">板中永區</option>
+              {staffAreas.map((area) => (
+                <option key={area} value={area}>{area}</option>
+              ))}
             </select>
           </div>
         </div>

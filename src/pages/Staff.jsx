@@ -3,8 +3,20 @@ import { useStaff } from '../contexts/StaffContext';
 import { Search, Plus, Edit3, Trash2, X, Save, User } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+const tagColors = [
+  { bg: 'bg-red-50 text-red-750 border-red-200', dot: 'bg-red-500' },
+  { bg: 'bg-orange-50 text-orange-755 border-orange-200', dot: 'bg-orange-500' },
+  { bg: 'bg-amber-50 text-amber-755 border-amber-200', dot: 'bg-amber-500' },
+  { bg: 'bg-green-50 text-green-755 border-green-200', dot: 'bg-green-500' },
+  { bg: 'bg-teal-50 text-teal-755 border-teal-200', dot: 'bg-teal-500' },
+  { bg: 'bg-blue-50 text-blue-755 border-blue-200', dot: 'bg-blue-500' },
+  { bg: 'bg-indigo-50 text-indigo-755 border-indigo-200', dot: 'bg-indigo-500' },
+  { bg: 'bg-purple-50 text-purple-755 border-purple-200', dot: 'bg-purple-500' },
+  { bg: 'bg-pink-50 text-pink-755 border-pink-250', dot: 'bg-pink-500' }
+];
+
 export default function Staff() {
-  const { staffList, addStaff, updateStaff, deleteStaff } = useStaff();
+  const { staffList, addStaff, updateStaff, deleteStaff, areas, addArea, deleteArea } = useStaff();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [areaFilter, setAreaFilter] = useState('全部區域');
@@ -16,20 +28,24 @@ export default function Staff() {
   const [newEmpId, setNewEmpId] = useState('');
   const [newName, setNewName] = useState('');
   const [newGender, setNewGender] = useState('F');
-  const [newArea, setNewArea] = useState('新莊區');
-  const [newTitle, setNewTitle] = useState('個管員');
+  const [newArea, setNewArea] = useState('');
 
   // 編輯人員表單狀態
   const [editName, setEditName] = useState('');
   const [editGender, setEditGender] = useState('F');
-  const [editArea, setEditArea] = useState('新莊區');
-  const [editTitle, setEditTitle] = useState('個管員');
+  const [editArea, setEditArea] = useState('');
+
+  // 新增區域狀態
+  const [isNewAreaInputOpen, setIsNewAreaInputOpen] = useState(false);
+  const [newAreaName, setNewAreaName] = useState('');
+  const [deleteAreaTarget, setDeleteAreaTarget] = useState(null);
 
   // 過濾搜尋與區域
   const filteredStaff = staffList.filter((s) => {
     const matchesSearch =
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.empId.toLowerCase().includes(searchTerm.toLowerCase());
+      s.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.area && s.area.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesArea = areaFilter === '全部區域' || s.area === areaFilter;
     return matchesSearch && matchesArea;
   });
@@ -51,25 +67,22 @@ export default function Staff() {
       empId: newEmpId.trim(),
       name: newName.trim(),
       gender: newGender,
-      area: newArea,
-      title: newTitle.trim()
+      area: newArea
     });
 
     // 重設新增表單
     setNewEmpId('');
     setNewName('');
     setNewGender('F');
-    setNewArea('新莊區');
-    setNewTitle('個管員');
+    setNewArea('');
     setIsAddOpen(false);
   };
 
   const handleStartEdit = (staff) => {
     setEditingStaff(staff);
     setEditName(staff.name);
-    setEditGender(staff.gender);
-    setEditArea(staff.area);
-    setEditTitle(staff.title);
+    setEditGender(staff.gender || 'F');
+    setEditArea(staff.area || '');
   };
 
   const handleSaveEdit = (e) => {
@@ -82,8 +95,7 @@ export default function Staff() {
     updateStaff(editingStaff.empId, {
       name: editName.trim(),
       gender: editGender,
-      area: editArea,
-      title: editTitle.trim()
+      area: editArea
     });
 
     setEditingStaff(null);
@@ -101,33 +113,104 @@ export default function Staff() {
       
       {/* 頂部操作與篩選列 */}
       <div className="flex flex-col sm:flex-row justify-between items-center bg-[#f8fafc] border border-slate-200 rounded-xl p-3 mb-4 gap-4">
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition shadow-sm cursor-pointer"
+            onClick={() => {
+              setNewArea(areas[0] || '');
+              setIsAddOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition shadow-sm cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4 text-[#2563eb]" />
             新增工作人員
           </button>
 
-          <select
-            value={areaFilter}
-            onChange={(e) => setAreaFilter(e.target.value)}
-            className="rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
-          >
-            <option value="全部區域">全部區域</option>
-            <option value="新莊區">新莊區</option>
-            <option value="三蘆區">三蘆區</option>
-            <option value="板中永區">板中永區</option>
-          </select>
+          <div className="h-6 w-px bg-slate-250 hidden sm:block shrink-0" />
+
+          {/* 新增區域與動態標籤 */}
+          <div className="flex flex-wrap items-center gap-2">
+            {isNewAreaInputOpen ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newAreaName.trim()) {
+                    addArea(newAreaName.trim());
+                    setNewAreaName('');
+                    setIsNewAreaInputOpen(false);
+                  }
+                }}
+                className="flex items-center gap-1.5 animate-in slide-in-from-left duration-200"
+              >
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="輸入新區域"
+                  value={newAreaName}
+                  onChange={(e) => setNewAreaName(e.target.value)}
+                  className="rounded-lg border border-slate-250 px-2.5 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 shadow-sm"
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1 bg-blue-650 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
+                >
+                  確定
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsNewAreaInputOpen(false)}
+                  className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-300 transition cursor-pointer"
+                >
+                  取消
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsNewAreaInputOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-xs transition shadow-sm cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#2563eb]" />
+                新增區域
+              </button>
+            )}
+
+            <div className="flex flex-wrap items-center gap-1.5 ml-1">
+              {areas.map((area, idx) => {
+                const color = tagColors[idx % tagColors.length];
+                const isSelected = areaFilter === area;
+                return (
+                  <span
+                    key={area}
+                    onClick={() => setAreaFilter(prev => prev === area ? '全部區域' : area)}
+                    className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition border cursor-pointer hover:shadow-sm ${color.bg} ${
+                      isSelected ? 'ring-2 ring-blue-500 border-blue-400' : color.border
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${color.dot}`} />
+                    <span>{area}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteAreaTarget(area);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded-full hover:bg-black/5 text-slate-500 hover:text-slate-900 cursor-pointer flex items-center justify-center"
+                      title="刪除區域"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
         </div>
         
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <span className="text-sm font-bold text-slate-600 shrink-0">搜尋：</span>
+          <span className="text-sm font-bold text-slate-650 shrink-0">搜尋：</span>
           <div className="relative w-full sm:w-64">
             <input
               type="text"
-              placeholder="搜尋編號或姓名..."
+              placeholder="搜尋編號、姓名、區域..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-lg border border-slate-250 pl-3 pr-8 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner"
@@ -142,49 +225,40 @@ export default function Staff() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#f1f5f9] border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
+              <tr className="bg-[#f1f5f9] border-b border-slate-200 text-xs font-bold text-slate-650 uppercase">
                 <th className="px-6 py-4">員工編號</th>
                 <th className="px-6 py-4">姓名</th>
-                <th className="px-6 py-4">性別</th>
                 <th className="px-6 py-4">服務區域</th>
-                <th className="px-6 py-4">職稱</th>
                 <th className="px-6 py-4 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之人員
                   </td>
                 </tr>
               ) : (
                 filteredStaff.map((s) => (
                   <tr key={s.empId} className="hover:bg-slate-50/50 transition">
-                    <td className="px-6 py-4 font-mono font-semibold text-slate-600">
+                    <td className="px-6 py-4 font-mono font-semibold text-slate-650">
                       {s.empId}
                     </td>
                     <td className="px-6 py-4">
-                      {/* 性別顏色標示：女粉紅、男藍色 */}
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold ${
-                        s.gender === 'F'
-                          ? 'bg-pink-50 text-pink-700 border border-pink-250'
-                          : 'bg-blue-50 text-blue-700 border border-blue-250'
-                      }`}>
-                        <span className={`w-2.5 h-2.5 rounded-full ${s.gender === 'F' ? 'bg-pink-500' : 'bg-blue-500'}`} />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold bg-slate-50 text-slate-700 border border-slate-200">
+                        <span className={`w-2.5 h-2.5 rounded-full ${s.gender === 'F' ? 'bg-[#ec4899]' : 'bg-[#3b82f6]'}`} />
                         {s.name}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">
-                      {s.gender === 'F' ? '女性' : '男性'}
-                    </td>
                     <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
-                        {s.area}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium">
-                      {s.title}
+                      {s.area ? (
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
+                          {s.area}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">無區域</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2 items-center">
@@ -281,25 +355,10 @@ export default function Staff() {
                   onChange={(e) => setNewArea(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
-                  <option value="新莊區">新莊區</option>
-                  <option value="三蘆區">三蘆區</option>
-                  <option value="板中永區">板中永區</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  職稱
-                </label>
-                <select
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                >
-                  <option value="個管員">個管員</option>
-                  <option value="督導">督導</option>
-                  <option value="社工師">社工師</option>
-                  <option value="行政人員">行政人員</option>
+                  <option value="">-- 請選擇服務區域 --</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
                 </select>
               </div>
 
@@ -387,25 +446,10 @@ export default function Staff() {
                   onChange={(e) => setEditArea(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
-                  <option value="新莊區">新莊區</option>
-                  <option value="三蘆區">三蘆區</option>
-                  <option value="板中永區">板中永區</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  職稱
-                </label>
-                <select
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                >
-                  <option value="個管員">個管員</option>
-                  <option value="督導">督導</option>
-                  <option value="社工師">社工師</option>
-                  <option value="行政人員">行政人員</option>
+                  <option value="">-- 請選擇服務區域 --</option>
+                  {areas.map((a) => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
                 </select>
               </div>
 
@@ -437,6 +481,18 @@ export default function Staff() {
         message={deleteTarget ? `確定要刪除「${deleteTarget.name}」（編號：${deleteTarget.empId}）嗎？此操作將不可復原。` : ''}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* 刪除區域確認對話框 */}
+      <ConfirmDialog
+        isOpen={deleteAreaTarget !== null}
+        title="確認刪除服務區域"
+        message={deleteAreaTarget ? `確定要刪除服務區域「${deleteAreaTarget}」嗎？所有原屬於此區域的工作人員，其服務區域將會被清空。` : ''}
+        onConfirm={async () => {
+          await deleteArea(deleteAreaTarget);
+          setDeleteAreaTarget(null);
+        }}
+        onCancel={() => setDeleteAreaTarget(null)}
       />
 
     </div>

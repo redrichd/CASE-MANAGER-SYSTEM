@@ -7,12 +7,20 @@ import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
 
 export default function Units() {
-  const { units, toggleStopUnit, addUnit } = useUnits();
+  const { units, toggleStopUnit, addUnit, updateUnit } = useUnits();
   const { cases } = useCases();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
+
+  // 管理員編輯數據狀態
+  const [adminEditingUnit, setAdminEditingUnit] = useState(null);
+  const [overrideDispatch, setOverrideDispatch] = useState(0);
+  const [overrideSuccess, setOverrideSuccess] = useState(0);
+  const [overrideThis, setOverrideThis] = useState(0);
+  const [overrideOther, setOverrideOther] = useState(0);
+  const [overrideStop, setOverrideStop] = useState(0);
   
   // 新單位表單狀態
   const [newName, setNewName] = useState('');
@@ -71,6 +79,38 @@ export default function Units() {
     );
   };
 
+  const handleOpenAdminEdit = (u) => {
+    setAdminEditingUnit(u);
+    setOverrideDispatch(u.dispatchCount || 0);
+    setOverrideSuccess(u.successCount || 0);
+    setOverrideThis(u.designatedThis || 0);
+    setOverrideOther(u.designatedOther || 0);
+    setOverrideStop(u.stopCount || 0);
+  };
+
+  const handleSaveAdminEdit = (e) => {
+    e.preventDefault();
+    updateUnit(adminEditingUnit.id, {
+      overrideStats: {
+        dispatchCount: Number(overrideDispatch),
+        successCount: Number(overrideSuccess),
+        designatedThis: Number(overrideThis),
+        designatedOther: Number(overrideOther),
+        stopCount: Number(overrideStop),
+        latestSuccessTime: adminEditingUnit.latestSuccessTime || 0
+      }
+    });
+    setAdminEditingUnit(null);
+  };
+
+  const handleResetAdminEdit = () => {
+    setOverrideDispatch(0);
+    setOverrideSuccess(0);
+    setOverrideThis(0);
+    setOverrideOther(0);
+    setOverrideStop(0);
+  };
+
   return (
     <div className="space-y-6">
       
@@ -87,7 +127,7 @@ export default function Units() {
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-600">搜尋：</span>
+          <span className="text-sm font-bold text-slate-650">搜尋：</span>
           <div className="relative">
             <input
               type="text"
@@ -106,22 +146,23 @@ export default function Units() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#f1f5f9] border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
+              <tr className="bg-[#f1f5f9] border-b border-slate-200 text-xs font-bold text-slate-650 uppercase">
                 <th className="px-6 py-4 text-center w-16">順位</th>
                 <th className="px-6 py-4">單位名稱</th>
                 <th className="px-6 py-4 text-center">服務內容</th>
                 <th className="px-6 py-4 text-center">總派案</th>
                 <th className="px-6 py-4 text-center">成功輪派</th>
-                <th className="px-6 py-4 text-center">指定本/它</th>
+                <th className="px-6 py-4 text-center">指定本單位</th>
+                <th className="px-6 py-4 text-center">指定它單位</th>
                 <th className="px-6 py-4 text-center">違規停派</th>
                 <th className="px-6 py-4">最後成功接案日</th>
                 <th className="px-6 py-4 text-right">合作狀態 / 操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
+            <tbody className="divide-y divide-slate-100 text-sm">
               {filteredUnits.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                  <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之單位
                   </td>
                 </tr>
@@ -135,16 +176,16 @@ export default function Units() {
                       key={u.id}
                       className={`transition ${
                         u.isStopped
-                          ? 'opacity-50 bg-slate-50/50 dark:bg-slate-950/20 grayscale'
-                          : 'hover:bg-slate-50/50 dark:hover:bg-slate-850/30'
+                          ? 'opacity-50 bg-slate-50/50 grayscale'
+                          : 'hover:bg-slate-50/50'
                       }`}
                     >
-                      <td className="px-6 py-4 text-center font-bold text-slate-500 dark:text-slate-400">
+                      <td className="px-6 py-4 text-center font-bold text-slate-500">
                         {displayIndex}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          <span className="font-semibold text-slate-850">
                             {u.name}
                           </span>
                           {u.rating > 0 && (
@@ -155,7 +196,7 @@ export default function Units() {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                        <div className="text-xs text-slate-400 mt-0.5">
                           ID: {u.id}
                         </div>
                       </td>
@@ -164,26 +205,29 @@ export default function Units() {
                           {u.services.map((s) => (
                             <span
                               key={s}
-                              className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350 rounded-md text-[10px] font-bold"
+                              className="px-1.5 py-0.5 bg-slate-100 text-slate-650 rounded-md text-[10px] font-bold"
                             >
                               {s}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center font-medium text-slate-700 dark:text-slate-300">
+                      <td className="px-6 py-4 text-center font-medium text-slate-700">
                         {u.dispatchCount || 0}
                       </td>
-                      <td className="px-6 py-4 text-center font-bold text-purple-600 dark:text-purple-400">
+                      <td className="px-6 py-4 text-center font-bold text-purple-600">
                         {u.successCount || 0}
                       </td>
-                      <td className="px-6 py-4 text-center text-slate-550 dark:text-slate-450 text-xs">
-                        {u.designatedThis || 0} / {u.designatedOther || 0}
+                      <td className="px-6 py-4 text-center font-medium text-slate-700">
+                        {u.designatedThis || 0}
+                      </td>
+                      <td className="px-6 py-4 text-center font-medium text-slate-700">
+                        {u.designatedOther || 0}
                       </td>
                       <td className="px-6 py-4 text-center font-medium text-rose-500">
                         {u.stopCount || 0}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
+                      <td className="px-6 py-4 text-slate-500 text-xs">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           <span>
@@ -203,18 +247,28 @@ export default function Units() {
                         <div className="flex justify-end gap-2 items-center">
                           <button
                             onClick={() => setEditingUnit(u)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/40 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
                             title="編輯單位"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                             編輯
                           </button>
+                          
+                          <button
+                            onClick={() => handleOpenAdminEdit(u)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-750 border border-amber-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                            title="管理員編輯數據"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            管理員編輯
+                          </button>
+
                           <button
                             onClick={() => toggleStopUnit(u.id)}
                             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all border ${
                               u.isStopped
-                                ? 'bg-rose-50 border-rose-250 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400 hover:bg-rose-100'
-                                : 'bg-emerald-50 border-emerald-250 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100'
+                                ? 'bg-rose-50 border-rose-250 text-rose-600 hover:bg-rose-100'
+                                : 'bg-emerald-50 border-emerald-250 text-emerald-600 hover:bg-emerald-100'
                             }`}
                           >
                             {u.isStopped ? (
@@ -243,12 +297,12 @@ export default function Units() {
       {/* 新增單位彈窗 */}
       {isAddOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[90vh] flex flex-col">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
               <h3 className="font-bold text-white mb-0">新增合作單位</h3>
               <button
                 onClick={() => setIsAddOpen(false)}
-                className="p-1.5 hover:bg-white/10 rounded-full text-white animate-in"
+                className="p-1.5 hover:bg-white/10 rounded-full text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -256,7 +310,7 @@ export default function Units() {
             
             <form onSubmit={handleAddUnit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">
                   單位名稱 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -264,16 +318,16 @@ export default function Units() {
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
                   placeholder="請輸入單位完整名稱"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">
                   可提供服務 (複選)
                 </label>
-                <div className="flex flex-wrap gap-3 max-h-36 overflow-y-auto border border-slate-100 dark:border-slate-800 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-950">
+                <div className="flex flex-wrap gap-3 max-h-36 overflow-y-auto border border-slate-100 p-3 rounded-xl bg-slate-50/50">
                   {SERVICE_CONTENTS.map((code) => (
                     <label key={code} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
                       <input
@@ -302,7 +356,7 @@ export default function Units() {
 
               {/* 星級評分功能 (選填) */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">
                   單位評分 (選填)
                 </label>
                 <div className="flex gap-1.5 py-1">
@@ -326,8 +380,8 @@ export default function Units() {
               </div>
 
               {/* 留言板功能 (選填) */}
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">
                   初始留言 (選填)
                 </label>
                 <input
@@ -335,22 +389,22 @@ export default function Units() {
                   placeholder="個管師姓名 (實名)"
                   value={newAuthor}
                   onChange={(e) => setNewAuthor(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs bg-slate-50/50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
                 />
                 <textarea
                   placeholder="請輸入留言內容..."
                   rows={2}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs bg-slate-50/50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-4 mt-4 shrink-0">
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-350 hover:bg-slate-50 rounded-xl transition text-xs font-semibold"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition text-xs font-semibold"
                 >
                   取消
                 </button>
@@ -374,6 +428,125 @@ export default function Units() {
           onClose={() => setEditingUnit(null)}
         />
       )}
+
+      {/* 管理員編輯數據彈窗 */}
+      {adminEditingUnit && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 max-h-[95vh] flex flex-col">
+            <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-4 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-bold text-white mb-0">管理員編輯 - {adminEditingUnit.name}</h3>
+              <button
+                onClick={() => setAdminEditingUnit(null)}
+                className="p-1.5 hover:bg-white/10 rounded-full text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveAdminEdit} className="p-6 space-y-4 overflow-y-auto flex-1 text-sm">
+              <div className="bg-amber-50 border border-amber-150 text-amber-800 px-3.5 py-2.5 rounded-xl text-xs flex justify-between items-center gap-2">
+                <span>點擊右側按鈕可一鍵將此單位所有統計數值歸零：</span>
+                <button
+                  type="button"
+                  onClick={handleResetAdminEdit}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer shrink-0 font-bold"
+                >
+                  一鍵歸零
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    總派案數
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overrideDispatch}
+                    onChange={(e) => setOverrideDispatch(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    成功輪派數
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overrideSuccess}
+                    onChange={(e) => setOverrideSuccess(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    指定本單位數
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overrideThis}
+                    onChange={(e) => setOverrideThis(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    指定它單位數
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overrideOther}
+                    onChange={(e) => setOverrideOther(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1">
+                    違規停派數
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={overrideStop}
+                    onChange={(e) => setOverrideStop(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-6 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAdminEditingUnit(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl transition text-xs font-semibold cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
+                >
+                  儲存變更
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

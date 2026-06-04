@@ -33,6 +33,13 @@ export default function CaseForm({ activeCase, onClose }) {
   const [isUnitCounseling, setIsUnitCounseling] = useState(activeCase?.isUnitCounseling || false);
   const [aUnitNotifyDate, setAUnitNotifyDate] = useState(activeCase?.aUnitNotifyDate || '');
   const [bUnitStartDate, setBUnitStartDate] = useState(activeCase?.bUnitStartDate || '');
+
+  // 個管員打字搜尋狀態
+  const initialStaffObj = staffList.find(s => s.name === (activeCase?.supervisor));
+  const [supervisorSearchTerm, setSupervisorSearchTerm] = useState(
+    initialStaffObj ? `${initialStaffObj.name} (${initialStaffObj.empId})` : activeCase?.supervisor || ''
+  );
+  const [isSupervisorDropdownOpen, setIsSupervisorDropdownOpen] = useState(false);
   
   // UI 狀態
   const [aiPolishing, setAiPolishing] = useState(false);
@@ -64,6 +71,15 @@ export default function CaseForm({ activeCase, onClose }) {
     }
     return false;
   })();
+
+  // 動態產生區域選項：包含所有人員的區域、預設區域與當前個案的區域
+  const availableAreas = Array.from(new Set([
+    ...staffList.map((s) => s.area),
+    ...(activeCase?.area ? [activeCase.area] : []),
+    '新莊區',
+    '三蘆區',
+    '板中永區'
+  ].filter(Boolean)));
 
   // 計算與排序 B 單位下拉選單 (過濾服務項目並隱藏停派單位)
   const statsUnits = calculateUnitStats(units, cases);
@@ -107,6 +123,16 @@ export default function CaseForm({ activeCase, onClose }) {
       alert('複製失敗，請手動複製！');
     }
   };
+
+  // 過濾搜尋個管員選項
+  const filteredSupervisors = staffList.filter((s) => {
+    const displayName = `${s.name} (${s.empId})`;
+    return displayName.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
+  });
+
+  const showExternalSupervisor = supervisor && 
+    !staffList.some(s => s.name === supervisor) && 
+    supervisor.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
 
   // 儲存個案
   const handleSave = (e) => {
@@ -233,21 +259,6 @@ export default function CaseForm({ activeCase, onClose }) {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  區域
-                </label>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="新莊區">新莊區</option>
-                  <option value="三蘆區">三蘆區</option>
-                  <option value="板中永區">板中永區</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
                   案主姓名
                 </label>
                 <input
@@ -297,23 +308,104 @@ export default function CaseForm({ activeCase, onClose }) {
                 <label htmlFor="supervisor" className="block text-xs font-bold text-slate-650 mb-1.5">
                   個管員
                 </label>
-                <select
-                  id="supervisor"
-                  required
-                  value={supervisor}
-                  onChange={(e) => setSupervisor(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">-- 請選擇個管員 --</option>
-                  {staffList.map((s) => (
-                    <option key={s.empId} value={s.name}>
-                      {s.name} ({s.empId}) - {s.title}
-                    </option>
-                  ))}
-                  {supervisor && !staffList.some(s => s.name === supervisor) && (
-                    <option value={supervisor}>{supervisor} (外部/已離職)</option>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="supervisor"
+                    required
+                    value={supervisorSearchTerm}
+                    onFocus={() => setIsSupervisorDropdownOpen(true)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSupervisorSearchTerm(val);
+                      setIsSupervisorDropdownOpen(true);
+                      
+                      const matchedStaff = staffList.find(s => 
+                        s.name === val || 
+                        `${s.name} (${s.empId})` === val
+                      );
+                      if (matchedStaff) {
+                        setSupervisor(matchedStaff.name);
+                        setArea(matchedStaff.area || '');
+                      } else {
+                        setSupervisor(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsSupervisorDropdownOpen(false);
+                        const currentStaff = staffList.find(s => s.name === supervisor);
+                        if (currentStaff) {
+                          setSupervisorSearchTerm(`${currentStaff.name} (${currentStaff.empId})`);
+                          setArea(currentStaff.area || '');
+                        } else if (supervisor) {
+                          setSupervisorSearchTerm(supervisor);
+                        } else {
+                          setSupervisorSearchTerm('');
+                        }
+                      }, 200);
+                    }}
+                    className="w-full rounded-lg border border-slate-250 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
+                    placeholder="輸入關鍵字以搜尋個管員..."
+                  />
+                  {isSupervisorDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
+                      {filteredSupervisors.length === 0 && !showExternalSupervisor ? (
+                        <div className="px-3 py-2 text-sm text-slate-455 italic">
+                          查無此個管員
+                        </div>
+                      ) : (
+                        <>
+                          {filteredSupervisors.map((s) => (
+                            <div
+                              key={s.empId}
+                              onClick={() => {
+                                setSupervisor(s.name);
+                                setSupervisorSearchTerm(`${s.name} (${s.empId})`);
+                                setArea(s.area || '');
+                                setIsSupervisorDropdownOpen(false);
+                              }}
+                              className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-700 font-medium flex items-center justify-between"
+                            >
+                              <span>{s.name} ({s.empId})</span>
+                              {s.area && (
+                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">
+                                  {s.area}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                          {showExternalSupervisor && (
+                            <div
+                              onClick={() => {
+                                setSupervisor(supervisor);
+                                setSupervisorSearchTerm(supervisor);
+                                setIsSupervisorDropdownOpen(false);
+                              }}
+                              className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-550 font-medium italic"
+                            >
+                              {supervisor} (外部/已離職)
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
-                </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  區域
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value={area}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                  placeholder="選擇個管員後自動帶入"
+                />
               </div>
             </div>
           </div>

@@ -57,6 +57,33 @@ describe('Unit Sorter & Stats Calculator', () => {
     expect(unitC.latestSuccessTime).toBe(0);
   });
 
+  it('should override statistics when overrideStats is present', () => {
+    const unitsWithOverride = [
+      {
+        id: 'U001',
+        name: '單位A',
+        services: ['BA'],
+        isStopped: false,
+        overrideStats: {
+          dispatchCount: 10,
+          successCount: 5,
+          designatedThis: 3,
+          designatedOther: 2,
+          stopCount: 1,
+          latestSuccessTime: 1234567890
+        }
+      }
+    ];
+    const stats = calculateUnitStats(unitsWithOverride, mockCases);
+    const unitA = stats.find(u => u.name === '單位A');
+    expect(unitA.dispatchCount).toBe(10);
+    expect(unitA.successCount).toBe(5);
+    expect(unitA.designatedThis).toBe(3);
+    expect(unitA.designatedOther).toBe(2);
+    expect(unitA.stopCount).toBe(1);
+    expect(unitA.latestSuccessTime).toBe(1234567890);
+  });
+
   it('should sort units based on the round-robin rules', () => {
     const stats = calculateUnitStats(mockUnits, mockCases);
     const sorted = sortUnits(stats);
@@ -68,3 +95,4 @@ describe('Unit Sorter & Stats Calculator', () => {
     expect(sorted[4].name).toBe('單位E');
   });
 });
+

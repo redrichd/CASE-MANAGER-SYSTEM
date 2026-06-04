@@ -82,4 +82,94 @@ describe('Units Page Integration Test', () => {
     const updatedStars = unitRow.querySelectorAll('svg.lucide-star');
     expect(updatedStars.length).toBe(0);
   });
+
+  it('should allow admin editing unit stats and resetting them to 0', async () => {
+    renderWithProviders(<Units />);
+
+    // Find the first unit row (e.g. U001)
+    const unitRow = screen.getByText('ID: U001').closest('tr');
+    
+    // Click "管理員編輯"
+    const adminEditBtn = within(unitRow).getByRole('button', { name: '管理員編輯' });
+    await act(async () => {
+      fireEvent.click(adminEditBtn);
+    });
+
+    // Check modal title
+    expect(screen.getByText(/管理員編輯 - /)).toBeInTheDocument();
+
+    // Find form inputs
+    const inputs = screen.getAllByRole('spinbutton');
+    // Spinbuttons are: 總派案數, 成功輪派數, 指定本單位數, 指定它單位數, 違規停派數
+    expect(inputs.length).toBe(5);
+
+    // Modify values
+    await act(async () => {
+      fireEvent.change(inputs[0], { target: { value: '15' } }); // Dispatch
+      fireEvent.change(inputs[1], { target: { value: '8' } });  // Success
+      fireEvent.change(inputs[2], { target: { value: '4' } });  // Designated This
+      fireEvent.change(inputs[3], { target: { value: '3' } });  // Designated Other
+      fireEvent.change(inputs[4], { target: { value: '1' } });  // Stop
+    });
+
+    // Save changes
+    const saveBtn = screen.getByRole('button', { name: '儲存變更' });
+    await act(async () => {
+      fireEvent.click(saveBtn);
+    });
+
+    // Check if table cells updated
+    // Table columns:
+    // index 0: 順位
+    // index 1: 單位名稱
+    // index 2: 服務內容
+    // index 3: 總派案
+    // index 4: 成功輪派
+    // index 5: 指定本單位
+    // index 6: 指定它單位
+    // index 7: 違規停派
+    const cellsBeforeReset = unitRow.querySelectorAll('td');
+    expect(cellsBeforeReset[3].textContent).toBe('15');
+    expect(cellsBeforeReset[4].textContent).toBe('8');
+    expect(cellsBeforeReset[5].textContent).toBe('4');
+    expect(cellsBeforeReset[6].textContent).toBe('3');
+    expect(cellsBeforeReset[7].textContent).toBe('1');
+
+    // Re-open Admin Edit
+    await act(async () => {
+      fireEvent.click(adminEditBtn);
+    });
+
+    // Re-query inputs since the modal was closed and reopened
+    const inputs2 = screen.getAllByRole('spinbutton');
+    expect(inputs2.length).toBe(5);
+
+    // Click "一鍵歸零"
+    const resetBtn = screen.getByRole('button', { name: '一鍵歸零' });
+    await act(async () => {
+      fireEvent.click(resetBtn);
+    });
+
+    // Values of inputs should be "0"
+    inputs2.forEach(input => {
+      expect(input.value).toBe('0');
+    });
+
+    // Save again
+    const saveBtn2 = screen.getByRole('button', { name: '儲存變更' });
+    await act(async () => {
+      fireEvent.click(saveBtn2);
+    });
+
+    // Value counts in the row should be updated to 0 (or at least render 0)
+    // Note: 0 might match multiple cells, so we can verify the text content
+    const cells = unitRow.querySelectorAll('td');
+    // dispatchCount (idx 3), successCount (idx 4), designatedThis (idx 5), designatedOther (idx 6), stopCount (idx 7)
+    expect(cells[3].textContent).toBe('0');
+    expect(cells[4].textContent).toBe('0');
+    expect(cells[5].textContent).toBe('0');
+    expect(cells[6].textContent).toBe('0');
+    expect(cells[7].textContent).toBe('0');
+  });
 });
+
