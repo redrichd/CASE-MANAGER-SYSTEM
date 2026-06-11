@@ -78,7 +78,10 @@ const initialCases = [
 ];
 
 export function CaseProvider({ children }) {
-  const [cases, setCases] = useState(initialCases);
+  const [cases, setCases] = useState(() => {
+    const local = localStorage.getItem('local_cases');
+    return local ? JSON.parse(local) : initialCases;
+  });
 
   useEffect(() => {
     if (!isFirebaseConfigured()) return;
@@ -86,13 +89,17 @@ export function CaseProvider({ children }) {
     const fetchCases = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'cases'));
-        if (querySnapshot.empty) {
+        const isInitialized = localStorage.getItem('cases_db_initialized') === 'true';
+
+        if (querySnapshot.empty && !isInitialized) {
           // Seed the database
           for (const c of initialCases) {
             await setDoc(doc(db, 'cases', c.id), c);
           }
+          localStorage.setItem('cases_db_initialized', 'true');
           setCases(initialCases);
-        } else {
+          localStorage.setItem('local_cases', JSON.stringify(initialCases));
+        } else if (!querySnapshot.empty) {
           const fetchedCases = [];
           querySnapshot.forEach((doc) => {
             fetchedCases.push(doc.data());
@@ -100,6 +107,8 @@ export function CaseProvider({ children }) {
           // Sort by id or date to ensure a deterministic list order
           fetchedCases.sort((a, b) => a.id.localeCompare(b.id));
           setCases(fetchedCases);
+          localStorage.setItem('local_cases', JSON.stringify(fetchedCases));
+          localStorage.setItem('cases_db_initialized', 'true');
         }
       } catch (error) {
         console.error('Error fetching cases from Firestore:', error);
@@ -110,7 +119,10 @@ export function CaseProvider({ children }) {
   }, []);
 
   const addCase = async (newCase) => {
-    setCases((prev) => [...prev, newCase]);
+    const updated = [...cases, newCase];
+    setCases(updated);
+    localStorage.setItem('local_cases', JSON.stringify(updated));
+
     if (isFirebaseConfigured()) {
       try {
         await setDoc(doc(db, 'cases', newCase.id), newCase);
@@ -121,9 +133,10 @@ export function CaseProvider({ children }) {
   };
 
   const updateCase = async (id, updatedFields) => {
-    setCases((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updatedFields } : c))
-    );
+    const updated = cases.map((c) => (c.id === id ? { ...c, ...updatedFields } : c));
+    setCases(updated);
+    localStorage.setItem('local_cases', JSON.stringify(updated));
+
     if (isFirebaseConfigured()) {
       try {
         await updateDoc(doc(db, 'cases', id), updatedFields);
@@ -134,9 +147,10 @@ export function CaseProvider({ children }) {
   };
 
   const closeCase = async (id) => {
-    setCases((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, isClosed: true } : c))
-    );
+    const updated = cases.map((c) => (c.id === id ? { ...c, isClosed: true } : c));
+    setCases(updated);
+    localStorage.setItem('local_cases', JSON.stringify(updated));
+
     if (isFirebaseConfigured()) {
       try {
         await updateDoc(doc(db, 'cases', id), { isClosed: true });

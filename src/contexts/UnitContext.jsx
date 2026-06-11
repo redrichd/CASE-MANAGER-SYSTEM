@@ -14,7 +14,10 @@ const initialUnits = [
 ];
 
 export function UnitProvider({ children }) {
-  const [units, setUnits] = useState(initialUnits);
+  const [units, setUnits] = useState(() => {
+    const local = localStorage.getItem('local_units');
+    return local ? JSON.parse(local) : initialUnits;
+  });
 
   useEffect(() => {
     if (!isFirebaseConfigured()) return;
@@ -22,13 +25,17 @@ export function UnitProvider({ children }) {
     const fetchUnits = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'units'));
-        if (querySnapshot.empty) {
+        const isInitialized = localStorage.getItem('units_db_initialized') === 'true';
+
+        if (querySnapshot.empty && !isInitialized) {
           // Seed the database
           for (const u of initialUnits) {
             await setDoc(doc(db, 'units', u.id), u);
           }
+          localStorage.setItem('units_db_initialized', 'true');
           setUnits(initialUnits);
-        } else {
+          localStorage.setItem('local_units', JSON.stringify(initialUnits));
+        } else if (!querySnapshot.empty) {
           const fetchedUnits = [];
           for (const docSnapshot of querySnapshot.docs) {
             const data = docSnapshot.data();
@@ -45,6 +52,8 @@ export function UnitProvider({ children }) {
           // Sort by id to ensure a deterministic list order
           fetchedUnits.sort((a, b) => a.id.localeCompare(b.id));
           setUnits(fetchedUnits);
+          localStorage.setItem('local_units', JSON.stringify(fetchedUnits));
+          localStorage.setItem('units_db_initialized', 'true');
         }
       } catch (error) {
         console.error('Error fetching/migrating units in Firestore:', error);
@@ -57,20 +66,21 @@ export function UnitProvider({ children }) {
   const toggleStopUnit = async (id, currentStopCount = 0) => {
     let currentIsStopped = false;
     let nextStopCount = currentStopCount;
-    setUnits((prev) =>
-      prev.map((u) => {
-        if (u.id === id) {
-          currentIsStopped = u.isStopped;
-          nextStopCount = !currentIsStopped ? currentStopCount + 1 : currentStopCount;
-          return { 
-            ...u, 
-            isStopped: !u.isStopped, 
-            stopCount: nextStopCount 
-          };
-        }
-        return u;
-      })
-    );
+    const updated = units.map((u) => {
+      if (u.id === id) {
+        currentIsStopped = u.isStopped;
+        nextStopCount = !currentIsStopped ? currentStopCount + 1 : currentStopCount;
+        return { 
+          ...u, 
+          isStopped: !u.isStopped, 
+          stopCount: nextStopCount 
+        };
+      }
+      return u;
+    });
+
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
@@ -85,9 +95,9 @@ export function UnitProvider({ children }) {
   };
 
   const updateUnit = async (id, updatedFields) => {
-    setUnits((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...updatedFields } : u))
-    );
+    const updated = units.map((u) => (u.id === id ? { ...u, ...updatedFields } : u));
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
@@ -108,7 +118,9 @@ export function UnitProvider({ children }) {
       rating: newUnit.rating || 0,
     };
 
-    setUnits((prev) => [...prev, formattedUnit]);
+    const updated = [...units, formattedUnit];
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
@@ -121,15 +133,16 @@ export function UnitProvider({ children }) {
 
   const addComment = async (unitId, comment) => {
     let updatedComments = [];
-    setUnits((prev) =>
-      prev.map((u) => {
-        if (u.id === unitId) {
-          updatedComments = [...(u.comments || []), comment];
-          return { ...u, comments: updatedComments };
-        }
-        return u;
-      })
-    );
+    const updated = units.map((u) => {
+      if (u.id === unitId) {
+        updatedComments = [...(u.comments || []), comment];
+        return { ...u, comments: updatedComments };
+      }
+      return u;
+    });
+
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
@@ -142,15 +155,16 @@ export function UnitProvider({ children }) {
 
   const updateComment = async (unitId, commentIndex, updatedFields) => {
     let updatedComments = [];
-    setUnits((prev) =>
-      prev.map((u) => {
-        if (u.id !== unitId) return u;
-        updatedComments = (u.comments || []).map((c, i) =>
-          i === commentIndex ? { ...c, ...updatedFields } : c
-        );
-        return { ...u, comments: updatedComments };
-      })
-    );
+    const updated = units.map((u) => {
+      if (u.id !== unitId) return u;
+      updatedComments = (u.comments || []).map((c, i) =>
+        i === commentIndex ? { ...c, ...updatedFields } : c
+      );
+      return { ...u, comments: updatedComments };
+    });
+
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
