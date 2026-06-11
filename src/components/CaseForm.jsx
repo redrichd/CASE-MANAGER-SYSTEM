@@ -156,9 +156,10 @@ export default function CaseForm({ activeCase, onClose }) {
     return displayName.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
   });
 
-  const showExternalSupervisor = supervisor && 
-    !staffList.some(s => s.name === supervisor) && 
-    supervisor.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
+  const originalSupervisor = activeCase?.supervisor || '';
+  const showExternalSupervisor = originalSupervisor && 
+    !staffList.some(s => s.name === originalSupervisor) && 
+    originalSupervisor.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
 
   // 儲存個案 (支援 forceSave 參數防止 React 閉包狀態非同步更新延遲)
   const handleSave = (e, forceSave = false) => {
@@ -427,13 +428,13 @@ export default function CaseForm({ activeCase, onClose }) {
                             <div
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                setSupervisor(supervisor);
-                                setSupervisorSearchTerm(supervisor);
+                                setSupervisor(originalSupervisor);
+                                setSupervisorSearchTerm(originalSupervisor);
                                 setIsSupervisorDropdownOpen(false);
                               }}
                               className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-550 font-medium italic"
                             >
-                              {supervisor} (外部/已離職)
+                              {originalSupervisor} (外部/已離職)
                             </div>
                           )}
                         </>
