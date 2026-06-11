@@ -358,6 +358,7 @@ export default function CaseForm({ activeCase, onClose }) {
                   <input
                     type="text"
                     id="supervisor"
+                    autoComplete="off"
                     required
                     value={supervisorSearchTerm}
                     onFocus={() => setIsSupervisorDropdownOpen(true)}
@@ -623,6 +624,7 @@ export default function CaseForm({ activeCase, onClose }) {
                     <input
                       type="text"
                       id="bUnitName"
+                      autoComplete="off"
                       value={bUnitSearchTerm}
                       onFocus={() => setIsBUnitDropdownOpen(true)}
                       onChange={(e) => {
