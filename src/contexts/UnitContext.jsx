@@ -7,10 +7,10 @@ const UnitContext = createContext();
 
 const initialUnits = [
   { id: 'U001', name: '大同居家照顧服務所', services: ['BA'], isStopped: false, comments: [] },
-  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'D'], isStopped: false, comments: [] },
+  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'DA'], isStopped: false, comments: [] },
   { id: 'U003', name: '萬華社區關懷協會', services: ['BA'], isStopped: false, comments: [] },
-  { id: 'U004', name: '大安居家喘息服務處', services: ['D'], isStopped: false, comments: [] },
-  { id: 'U005', name: '信義停派居家機構', services: ['BA', 'D'], isStopped: true, comments: [] },
+  { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], isStopped: false, comments: [] },
+  { id: 'U005', name: '信義停派居家機構', services: ['BA', 'DA'], isStopped: true, comments: [] },
 ];
 
 export function UnitProvider({ children }) {
@@ -30,15 +30,24 @@ export function UnitProvider({ children }) {
           setUnits(initialUnits);
         } else {
           const fetchedUnits = [];
-          querySnapshot.forEach((doc) => {
-            fetchedUnits.push(doc.data());
-          });
+          for (const docSnapshot of querySnapshot.docs) {
+            const data = docSnapshot.data();
+            // 自動將資料庫中舊的 D 碼搬遷修正為 DA 碼，防止歷史數據殘留
+            if (data.services && data.services.includes('D')) {
+              const updatedServices = data.services.map(s => s === 'D' ? 'DA' : s);
+              const updatedUnit = { ...data, services: updatedServices };
+              await setDoc(doc(db, 'units', data.id), updatedUnit);
+              fetchedUnits.push(updatedUnit);
+            } else {
+              fetchedUnits.push(data);
+            }
+          }
           // Sort by id to ensure a deterministic list order
           fetchedUnits.sort((a, b) => a.id.localeCompare(b.id));
           setUnits(fetchedUnits);
         }
       } catch (error) {
-        console.error('Error fetching units from Firestore:', error);
+        console.error('Error fetching/migrating units in Firestore:', error);
       }
     };
 

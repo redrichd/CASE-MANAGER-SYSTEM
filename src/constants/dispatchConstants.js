@@ -19,7 +19,7 @@ export const SERVICE_CONTENTS = [
   "CB",
   "CC",
   "CD",
-  "D",
+  "DA",
   "GA03",
   "GA04",
   "GA05",
