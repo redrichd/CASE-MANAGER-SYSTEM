@@ -6,6 +6,24 @@ import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3 } from 'lucide
 import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
 
+const SERVICE_FILTERS = [
+  { key: 'ALL', label: '全部' },
+  { key: 'BA', label: '居服 (BA)' },
+  { key: 'BB', label: '日照 (BB)' },
+  { key: 'BC', label: '家托 (BC)' },
+  { key: 'CA', label: '專業 (CA)' },
+  { key: 'CB', label: '專業 (CB)' },
+  { key: 'CC', label: '專業 (CC)' },
+  { key: 'CD', label: '專業 (CD)' },
+  { key: 'DA', label: '交通 (DA)' },
+  { key: 'GA09', label: '居喘 (GA09)' },
+  { key: 'GA03_04', label: '日照喘 (GA03/04)' },
+  { key: 'GA05', label: '機構喘 (GA05)' },
+  { key: 'GA06', label: '小多機能 (GA06)' },
+  { key: 'GA07', label: '巷弄長照 (GA07)' },
+  { key: 'SC09', label: '短照 (SC09)' },
+];
+
 export default function Units() {
   const { units, toggleStopUnit, addUnit, updateUnit } = useUnits();
   const { cases } = useCases();
@@ -30,9 +48,48 @@ export default function Units() {
   const [newAuthor, setNewAuthor] = useState('');
   const [newComment, setNewComment] = useState('');
 
+  // 篩選服務內容狀態
+  const [selectedServiceFilter, setSelectedServiceFilter] = useState('ALL');
+
+  // 根據選擇的服務類別來過濾 cases 作為統計底數
+  const getFilteredCasesForStats = () => {
+    if (selectedServiceFilter === 'ALL') {
+      return cases;
+    }
+    return cases.filter((c) => {
+      const code = c.serviceContent;
+      if (selectedServiceFilter === 'BA') return code === 'BA';
+      if (selectedServiceFilter === 'BB') return code === 'BB';
+      if (selectedServiceFilter === 'BC') return code === 'BC';
+      if (selectedServiceFilter === 'CA') return code === 'CA';
+      if (selectedServiceFilter === 'CB') return code === 'CB';
+      if (selectedServiceFilter === 'CC') return code === 'CC';
+      if (selectedServiceFilter === 'CD') return code === 'CD';
+      if (selectedServiceFilter === 'DA') return code === 'DA';
+      if (selectedServiceFilter === 'GA09') return code === 'GA09';
+      if (selectedServiceFilter === 'GA03_04') return code === 'GA03' || code === 'GA04';
+      if (selectedServiceFilter === 'GA05') return code === 'GA05';
+      if (selectedServiceFilter === 'GA06') return code === 'GA06';
+      if (selectedServiceFilter === 'GA07') return code === 'GA07';
+      if (selectedServiceFilter === 'SC09') return code === 'SC09';
+      return false;
+    });
+  };
+
   // 1. 計算所有單位的即時統計數據與排序
-  const statsUnits = calculateUnitStats(units, cases);
-  const sortedUnits = sortUnits(statsUnits);
+  const filteredCasesForStats = getFilteredCasesForStats();
+  const statsUnits = calculateUnitStats(units, filteredCasesForStats);
+
+  // 2. 根據選擇的服務類別，過濾掉不提供該服務的單位 (當選擇全部時不進行過濾)
+  const serviceFilteredUnits = statsUnits.filter((u) => {
+    if (selectedServiceFilter === 'ALL') return true;
+    if (selectedServiceFilter === 'GA03_04') {
+      return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
+    }
+    return u.services && u.services.includes(selectedServiceFilter);
+  });
+
+  const sortedUnits = sortUnits(serviceFilteredUnits);
 
   // 2. 搜尋過濾：單位名稱
   const filteredUnits = sortedUnits.filter((u) =>
@@ -138,6 +195,33 @@ export default function Units() {
             />
             <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           </div>
+        </div>
+      </div>
+
+      {/* 服務類別統計標籤 */}
+      <div className="bg-[#f8fafc] border border-slate-200 rounded-2xl p-4">
+        <div className="text-xs font-bold text-slate-500 mb-2.5 flex items-center gap-1.5">
+          <span>統計服務類別篩選：</span>
+          <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">切換後僅統計該服務的數據且僅顯示提供該服務的單位</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SERVICE_FILTERS.map((f) => {
+            const isActive = selectedServiceFilter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setSelectedServiceFilter(f.key)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
+                  isActive
+                    ? 'bg-purple-600 border-purple-600 text-white shadow-purple-600/10'
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
