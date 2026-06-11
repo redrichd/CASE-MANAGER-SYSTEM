@@ -4,9 +4,9 @@ import { useUnits } from '../contexts/UnitContext';
 import { useStaff } from '../contexts/StaffContext';
 import { calculateDeadline } from '../utils/deadlineCalculator';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
-import { polishDelayReason, generateDispatchMessage } from '../services/aiService';
+import { generateDispatchMessage } from '../services/aiService';
 import ConfirmDialog from './ConfirmDialog';
-import { Sparkles, Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus, Star } from 'lucide-react';
+import { Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus, Star } from 'lucide-react';
 import { parsePastedDateTime } from '../utils/dateTimeParser';
 import UnitEditModal from './UnitEditModal';
 import { DISPATCH_TYPES, SERVICE_CONTENTS } from '../constants/dispatchConstants';
@@ -46,7 +46,6 @@ export default function CaseForm({ activeCase, onClose }) {
   const [isBUnitDropdownOpen, setIsBUnitDropdownOpen] = useState(false);
   
   // UI 狀態
-  const [aiPolishing, setAiPolishing] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [warningMsg, setWarningMsg] = useState('');
   const [showWarning, setShowWarning] = useState(false);
@@ -112,21 +111,6 @@ export default function CaseForm({ activeCase, onClose }) {
     }
     return a.id.localeCompare(b.id);
   });
-
-  // AI 潤飾白話逾時說明
-  const handleAiPolish = async () => {
-    if (!delayReason.trim()) return;
-    setAiPolishing(true);
-    try {
-      const polished = await polishDelayReason(delayReason);
-      setDelayReason(polished);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setAiPolishing(false);
-    }
-  };
-
   // 一鍵生成並複製派案交接短訊
   const handleCopyMessage = async () => {
     const caseData = {
@@ -539,26 +523,17 @@ export default function CaseForm({ activeCase, onClose }) {
                   <span className="text-sm">系統檢測：已逾時效，必須填寫逾時說明！</span>
                 </div>
                 <div>
-                  <div className="flex justify-between items-center mb-1.5">
+                  <div className="mb-1.5">
                     <label className="block text-xs font-bold text-red-900">
                       時效逾時說明 <span className="text-red-500">*</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleAiPolish}
-                      disabled={aiPolishing || !delayReason.trim()}
-                      className="inline-flex items-center gap-1 text-xs bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg transition font-bold disabled:bg-purple-300 cursor-pointer shadow-sm"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      {aiPolishing ? 'AI 潤飾中...' : 'AI 潤飾草稿'}
-                    </button>
                   </div>
                   <textarea
                     required={isOvertime}
                     value={delayReason}
                     onChange={(e) => setDelayReason(e.target.value)}
                     className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-red-500 min-h-[80px]"
-                    placeholder="請輸入白話逾時原因（例如：家屬電話無法撥通），點擊上方 AI 潤飾可自動轉換為正式說明..."
+                    placeholder="請輸入逾時說明..."
                   />
                 </div>
               </div>
