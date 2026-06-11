@@ -74,6 +74,7 @@ export function StaffProvider({ children }) {
 
         fetchedStaff.sort((a, b) => a.empId.localeCompare(b.empId));
         setStaffList(fetchedStaff);
+        localStorage.setItem('local_staff_list', JSON.stringify(fetchedStaff));
         localStorage.setItem('staff_db_initialized', 'true');
       } catch (error) {
         console.error('Error fetching/merging staff in Firestore:', error);
