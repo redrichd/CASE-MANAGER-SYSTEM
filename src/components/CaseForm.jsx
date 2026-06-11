@@ -160,9 +160,9 @@ export default function CaseForm({ activeCase, onClose }) {
     !staffList.some(s => s.name === supervisor) && 
     supervisor.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
 
-  // 儲存個案
-  const handleSave = (e) => {
-    if (e) e.preventDefault();
+  // 儲存個案 (支援 forceSave 參數防止 React 閉包狀態非同步更新延遲)
+  const handleSave = (e, forceSave = false) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
     if (!id || !name || !supervisor) {
       alert('請填寫必填欄位 (案號、姓名、個管員)！');
@@ -176,7 +176,7 @@ export default function CaseForm({ activeCase, onClose }) {
     }
 
     // 檢查違規停派確認
-    if (bUnitName && dispatchResult === '違規停派' && !pendingSave) {
+    if (bUnitName && dispatchResult === '違規停派' && !pendingSave && !forceSave) {
       setWarningMsg(
         `是否確定要將「${bUnitName}」設為違規停派？確認後，該單位的狀態將會自動變更為停派中，並且違規停派次數將會加 1。`
       );
@@ -185,7 +185,7 @@ export default function CaseForm({ activeCase, onClose }) {
     }
 
     // 檢查近期重複派案攔截 (單位是否有成功派案紀錄)
-    if (bUnitName && !pendingSave) {
+    if (bUnitName && !pendingSave && !forceSave) {
       const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
       const duplicateCase = cases.find(
         (c) =>
@@ -252,9 +252,7 @@ export default function CaseForm({ activeCase, onClose }) {
   const confirmDuplicateSave = () => {
     setPendingSave(true);
     setShowWarning(false);
-    setTimeout(() => {
-      handleSave();
-    }, 50);
+    handleSave(null, true);
   };
 
   return (
@@ -407,7 +405,8 @@ export default function CaseForm({ activeCase, onClose }) {
                           {filteredSupervisors.map((s) => (
                             <div
                               key={s.empId}
-                              onClick={() => {
+                              onMouseDown={(e) => {
+                                e.preventDefault();
                                 setSupervisor(s.name);
                                 setSupervisorSearchTerm(`${s.name} (${s.empId})`);
                                 setArea(s.area || '');
@@ -425,7 +424,8 @@ export default function CaseForm({ activeCase, onClose }) {
                           ))}
                           {showExternalSupervisor && (
                             <div
-                              onClick={() => {
+                              onMouseDown={(e) => {
+                                e.preventDefault();
                                 setSupervisor(supervisor);
                                 setSupervisorSearchTerm(supervisor);
                                 setIsSupervisorDropdownOpen(false);
@@ -662,7 +662,8 @@ export default function CaseForm({ activeCase, onClose }) {
                             return (
                               <div
                                 key={u.id}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
                                   setBUnitName(u.name);
                                   setBUnitSearchTerm(u.name);
                                   setIsBUnitDropdownOpen(false);
