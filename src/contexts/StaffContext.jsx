@@ -6,33 +6,39 @@ import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase
 const StaffContext = createContext();
 
 const initialStaff = [
-  {
-    empId: 'E0001',
-    name: '陳個管',
-    gender: 'F',
-    area: '新莊區',
-    title: '個管員'
-  },
-  {
-    empId: 'E0002',
-    name: '張個管',
-    gender: 'M',
-    area: '三蘆區',
-    title: '個管員'
-  },
-  {
-    empId: 'E0003',
-    name: '林督導',
-    gender: 'F',
-    area: '板中永區',
-    title: '督導'
-  }
+  { empId: '852', name: '曾玟文', gender: 'F', area: '新莊區', title: '個管員' },
+  { empId: '855', name: '邱煌軒', gender: 'M', area: '新莊區', title: '個管員' },
+  { empId: '856', name: '賴惠純', gender: 'F', area: '新莊區', title: '個管員' },
+  { empId: '857', name: '葉湘芸', gender: 'F', area: '新莊區', title: '個管員' },
+  { empId: '863', name: '黃凱琳', gender: 'F', area: '新莊區', title: '個管員' },
+  { empId: '891', name: '王昱昕', gender: 'M', area: '', title: '督導' },
+  { empId: '908', name: '林依珊', gender: 'F', area: '三蘆區', title: '個管員' },
+  { empId: '913', name: '傅韶揚', gender: 'M', area: '三蘆區', title: '個管員' },
+  { empId: '915', name: '楊文慧', gender: 'F', area: '三蘆區', title: '個管員' },
+  { empId: '930', name: '龐豫',   gender: 'F', area: '三蘆區', title: '個管員' }
 ];
 
 export function StaffProvider({ children }) {
   const [staffList, setStaffList] = useState(() => {
     const local = localStorage.getItem('local_staff_list');
-    return local ? JSON.parse(local) : initialStaff;
+    if (local) {
+      const parsed = JSON.parse(local);
+      // 自動合併 initialStaff，確保本機與離線狀態也能看到新名單
+      const merged = [...parsed];
+      let updated = false;
+      for (const s of initialStaff) {
+        if (!merged.some(m => m.empId === s.empId || m.name === s.name)) {
+          merged.push(s);
+          updated = true;
+        }
+      }
+      if (updated) {
+        merged.sort((a, b) => a.empId.localeCompare(b.empId));
+        localStorage.setItem('local_staff_list', JSON.stringify(merged));
+      }
+      return merged;
+    }
+    return initialStaff;
   });
 
   const [areas, setAreas] = useState(() => {
@@ -46,27 +52,31 @@ export function StaffProvider({ children }) {
     const fetchStaff = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, 'staff'));
-        const isInitialized = localStorage.getItem('staff_db_initialized') === 'true';
+        
+        // 撈取資料庫目前已有的人員
+        const fetchedStaff = [];
+        querySnapshot.forEach((doc) => {
+          fetchedStaff.push(doc.data());
+        });
 
-        if (querySnapshot.empty && !isInitialized) {
-          for (const s of initialStaff) {
+        // 自動合併 initialStaff，如果資料庫中沒有該工號或名字，就寫入（保證不重複且補齊名單）
+        let updatedDb = false;
+        for (const s of initialStaff) {
+          const exists = fetchedStaff.some(
+            (fs) => fs.empId === s.empId || fs.name === s.name
+          );
+          if (!exists) {
             await setDoc(doc(db, 'staff', s.empId), s);
+            fetchedStaff.push(s);
+            updatedDb = true;
           }
-          localStorage.setItem('staff_db_initialized', 'true');
-          setStaffList(initialStaff);
-        } else if (!querySnapshot.empty) {
-          const fetchedStaff = [];
-          querySnapshot.forEach((doc) => {
-            fetchedStaff.push(doc.data());
-          });
-          fetchedStaff.sort((a, b) => a.empId.localeCompare(b.empId));
-          setStaffList(fetchedStaff);
-          localStorage.setItem('staff_db_initialized', 'true');
-        } else {
-          setStaffList([]);
         }
+
+        fetchedStaff.sort((a, b) => a.empId.localeCompare(b.empId));
+        setStaffList(fetchedStaff);
+        localStorage.setItem('staff_db_initialized', 'true');
       } catch (error) {
-        console.error('Error fetching staff from Firestore:', error);
+        console.error('Error fetching/merging staff in Firestore:', error);
       }
     };
 
