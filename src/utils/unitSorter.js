@@ -28,7 +28,6 @@ export function calculateUnitStats(units, cases) {
     let successCount = 0;
     let designatedThis = 0;
     let designatedOther = 0;
-    let stopCount = 0;
     let latestSuccessTime = 0;
 
     unitCases.forEach((c) => {
@@ -46,10 +45,11 @@ export function calculateUnitStats(units, cases) {
         designatedThis++;
       } else if (result === '案主指定(外單位)') {
         designatedOther++;
-      } else if (result === '違規停派') {
-        stopCount++;
       }
     });
+
+    const caseStopCount = unitCases.filter(c => c.dispatchResult === '違規停派').length;
+    const stopCount = typeof unit.stopCount === 'number' ? unit.stopCount : caseStopCount;
 
     return {
       ...unit,

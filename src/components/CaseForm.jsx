@@ -228,11 +228,16 @@ export default function CaseForm({ activeCase, onClose }) {
       isClosed: activeCase ? activeCase.isClosed : false,
     };
 
-    // 違規停派時，更新單位的 isStopped 狀態為 true
+    // 違規停派時，更新單位的 isStopped 狀態為 true 且 stopCount 加 1
     if (bUnitName && dispatchResult === '違規停派') {
       const targetUnit = units.find(u => u.name === bUnitName);
       if (targetUnit) {
-        updateUnit(targetUnit.id, { isStopped: true });
+        const currentCaseStops = cases.filter(c => c.bUnitName === targetUnit.name && c.dispatchResult === '違規停派').length;
+        const currentStopCount = typeof targetUnit.stopCount === 'number' ? targetUnit.stopCount : currentCaseStops;
+        updateUnit(targetUnit.id, { 
+          isStopped: true,
+          stopCount: currentStopCount + 1
+        });
       }
     }
 

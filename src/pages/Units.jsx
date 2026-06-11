@@ -266,7 +266,7 @@ export default function Units() {
                           <button
                             onClick={() => {
                               if (u.isStopped || window.confirm(`是否確定要停派單位「${u.name}」？`)) {
-                                toggleStopUnit(u.id);
+                                toggleStopUnit(u.id, u.stopCount);
                               }
                             }}
                             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all border ${

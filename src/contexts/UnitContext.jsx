@@ -45,13 +45,19 @@ export function UnitProvider({ children }) {
     fetchUnits();
   }, []);
 
-  const toggleStopUnit = async (id) => {
+  const toggleStopUnit = async (id, currentStopCount = 0) => {
     let currentIsStopped = false;
+    let nextStopCount = currentStopCount;
     setUnits((prev) =>
       prev.map((u) => {
         if (u.id === id) {
           currentIsStopped = u.isStopped;
-          return { ...u, isStopped: !u.isStopped };
+          nextStopCount = !currentIsStopped ? currentStopCount + 1 : currentStopCount;
+          return { 
+            ...u, 
+            isStopped: !u.isStopped, 
+            stopCount: nextStopCount 
+          };
         }
         return u;
       })
@@ -59,7 +65,10 @@ export function UnitProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'units', id), { isStopped: !currentIsStopped });
+        await updateDoc(doc(db, 'units', id), { 
+          isStopped: !currentIsStopped,
+          stopCount: nextStopCount
+        });
       } catch (error) {
         console.error('Error toggling stop unit in Firestore:', error);
       }
