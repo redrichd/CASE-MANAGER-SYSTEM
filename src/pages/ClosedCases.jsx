@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
-import { Search, Eye, Archive } from 'lucide-react';
+import { Search, Eye, Archive, Trash2 } from 'lucide-react';
 
 export default function ClosedCases() {
-  const { cases } = useCases();
+  const { cases, deleteCase } = useCases();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCase, setSelectedCase] = useState(null);
+
+  const handleDelete = async (id) => {
+    if (window.confirm('確定要刪除此已結案個案嗎？此動作無法復原！')) {
+      await deleteCase(id);
+      if (selectedCase?.id === id) {
+        setSelectedCase(null);
+      }
+    }
+  };
 
   // 搜尋過濾已結案的個案
   const closedCasesList = cases.filter(
@@ -53,7 +62,7 @@ export default function ClosedCases() {
                   <th className="px-6 py-3 w-28">服務項目</th>
                   <th className="px-6 py-3">派案結果</th>
                   <th className="px-6 py-3 text-center w-28">時效</th>
-                  <th className="px-6 py-3 text-right w-24">操作</th>
+                  <th className="px-6 py-3 text-right w-36">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -94,13 +103,22 @@ export default function ClosedCases() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setSelectedCase(c)}
-                          className="inline-flex items-center gap-1 text-xs text-blue-650 hover:text-blue-700 font-bold transition cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          檢視
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            onClick={() => setSelectedCase(c)}
+                            className="inline-flex items-center gap-1 text-xs text-blue-650 hover:text-blue-700 font-bold transition cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            檢視
+                          </button>
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            className="inline-flex items-center gap-1 text-xs text-red-650 hover:text-red-700 font-bold transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            刪除
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

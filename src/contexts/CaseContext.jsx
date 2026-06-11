@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const CaseContext = createContext();
 
@@ -160,8 +160,22 @@ export function CaseProvider({ children }) {
     }
   };
 
+  const deleteCase = async (id) => {
+    const updated = cases.filter((c) => c.id !== id);
+    setCases(updated);
+    localStorage.setItem('local_cases', JSON.stringify(updated));
+
+    if (isFirebaseConfigured()) {
+      try {
+        await deleteDoc(doc(db, 'cases', id));
+      } catch (error) {
+        console.error('Error deleting case from Firestore:', error);
+      }
+    }
+  };
+
   return (
-    <CaseContext.Provider value={{ cases, addCase, updateCase, closeCase }}>
+    <CaseContext.Provider value={{ cases, addCase, updateCase, closeCase, deleteCase }}>
       {children}
     </CaseContext.Provider>
   );
