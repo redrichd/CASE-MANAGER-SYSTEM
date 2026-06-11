@@ -41,11 +41,7 @@ export function StaffProvider({ children }) {
   });
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      localStorage.setItem('local_staff_list', JSON.stringify(staffList));
-      localStorage.setItem('local_areas', JSON.stringify(areas));
-      return;
-    }
+    if (!isFirebaseConfigured()) return;
 
     const fetchStaff = async () => {
       try {
@@ -75,7 +71,7 @@ export function StaffProvider({ children }) {
     };
 
     fetchStaff();
-  }, [areas, staffList]);
+  }, []);
 
   const addStaff = async (newStaff) => {
     const updated = [...staffList, newStaff].sort((a, b) => a.empId.localeCompare(b.empId));
