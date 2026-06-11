@@ -264,7 +264,11 @@ export default function Units() {
                           </button>
 
                           <button
-                            onClick={() => toggleStopUnit(u.id)}
+                            onClick={() => {
+                              if (u.isStopped || window.confirm(`是否確定要停派單位「${u.name}」？`)) {
+                                toggleStopUnit(u.id);
+                              }
+                            }}
                             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all border ${
                               u.isStopped
                                 ? 'bg-rose-50 border-rose-250 text-rose-600 hover:bg-rose-100'

@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 允許所有人讀寫。若在生產環境使用，請改為適當的身份驗證限制。
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

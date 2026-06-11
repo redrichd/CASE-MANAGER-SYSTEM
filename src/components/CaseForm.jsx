@@ -6,14 +6,14 @@ import { calculateDeadline } from '../utils/deadlineCalculator';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { polishDelayReason, generateDispatchMessage } from '../services/aiService';
 import ConfirmDialog from './ConfirmDialog';
-import { Sparkles, Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus } from 'lucide-react';
+import { Sparkles, Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus, Star } from 'lucide-react';
 import { parsePastedDateTime } from '../utils/dateTimeParser';
 import UnitEditModal from './UnitEditModal';
 import { DISPATCH_TYPES, SERVICE_CONTENTS } from '../constants/dispatchConstants';
 
 export default function CaseForm({ activeCase, onClose }) {
   const { cases, addCase, updateCase } = useCases();
-  const { units } = useUnits();
+  const { units, updateUnit } = useUnits();
   const { staffList } = useStaff();
 
   // 表單欄位狀態 - 直接從 activeCase 初始化
@@ -41,6 +41,10 @@ export default function CaseForm({ activeCase, onClose }) {
   );
   const [isSupervisorDropdownOpen, setIsSupervisorDropdownOpen] = useState(false);
   
+  // B 單位打字搜尋狀態
+  const [bUnitSearchTerm, setBUnitSearchTerm] = useState(activeCase?.bUnitName || '');
+  const [isBUnitDropdownOpen, setIsBUnitDropdownOpen] = useState(false);
+  
   // UI 狀態
   const [aiPolishing, setAiPolishing] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -48,6 +52,7 @@ export default function CaseForm({ activeCase, onClose }) {
   const [showWarning, setShowWarning] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
   const [editUnitOpen, setEditUnitOpen] = useState(false);
+  const [isUnitListOpen, setIsUnitListOpen] = useState(false);
 
   // 處理貼上日期/時間的自動解析
   const handleDatePaste = (setter, type = 'datetime-local') => (e) => {
@@ -86,6 +91,27 @@ export default function CaseForm({ activeCase, onClose }) {
   const filteredSortedUnits = sortUnits(statsUnits).filter(
     (u) => u.services && u.services.includes(serviceContent) && !u.isStopped
   );
+
+  // 過濾搜尋 B 單位選項
+  const filteredBUnits = filteredSortedUnits.filter((u) => {
+    return u.name.toLowerCase().includes(bUnitSearchTerm.toLowerCase());
+  });
+
+  // 獨立計算「目前選擇碼別」的輪序表 (派案次數越少越前面)
+  const fairRotationUnits = [...filteredSortedUnits].map(u => {
+    const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
+    const codeCount = cases.filter(c => 
+      c.bUnitName === u.name && 
+      c.serviceContent === serviceContent && 
+      successResults.has(c.dispatchResult)
+    ).length;
+    return { ...u, codeDispatchCount: codeCount };
+  }).sort((a, b) => {
+    if (a.codeDispatchCount !== b.codeDispatchCount) {
+      return a.codeDispatchCount - b.codeDispatchCount; // 派案次數少的優先 (沒派過的在最前面)
+    }
+    return a.id.localeCompare(b.id);
+  });
 
   // AI 潤飾白話逾時說明
   const handleAiPolish = async () => {
@@ -149,6 +175,15 @@ export default function CaseForm({ activeCase, onClose }) {
       return;
     }
 
+    // 檢查違規停派確認
+    if (bUnitName && dispatchResult === '違規停派' && !pendingSave) {
+      setWarningMsg(
+        `是否確定要將「${bUnitName}」設為違規停派？確認後，該單位的狀態將會自動變更為停派中，並且違規停派次數將會加 1。`
+      );
+      setShowWarning(true);
+      return;
+    }
+
     // 檢查近期重複派案攔截 (單位是否有成功派案紀錄)
     if (bUnitName && !pendingSave) {
       const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
@@ -192,6 +227,14 @@ export default function CaseForm({ activeCase, onClose }) {
       bUnitStartDate,
       isClosed: activeCase ? activeCase.isClosed : false,
     };
+
+    // 違規停派時，更新單位的 isStopped 狀態為 true
+    if (bUnitName && dispatchResult === '違規停派') {
+      const targetUnit = units.find(u => u.name === bUnitName);
+      if (targetUnit) {
+        updateUnit(targetUnit.id, { isStopped: true });
+      }
+    }
 
     if (activeCase) {
       updateCase(activeCase.id, savedData);
@@ -546,7 +589,8 @@ export default function CaseForm({ activeCase, onClose }) {
                    value={serviceContent}
                    onChange={(e) => {
                      setServiceContent(e.target.value);
-                     setBUnitName(''); 
+                     setBUnitName('');
+                     setBUnitSearchTerm('');
                    }}
                    className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                  >
@@ -557,26 +601,80 @@ export default function CaseForm({ activeCase, onClose }) {
               </div>
 
               <div>
-                <label htmlFor="bUnitName" className="block text-xs font-bold text-slate-650 mb-1.5">
-                  指派 B 單位 (依公平輪排排序)
-                </label>
-                <div className="flex gap-2 items-center">
-                  <select
-                    id="bUnitName"
-                    value={bUnitName}
-                    onChange={(e) => setBUnitName(e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                <div className="flex justify-between items-end mb-1.5">
+                  <label htmlFor="bUnitName" className="block text-xs font-bold text-slate-650">
+                    指派 B 單位 (依星級排序)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsUnitListOpen(true)}
+                    className="text-[10px] text-purple-600 font-bold hover:underline focus:outline-none cursor-pointer"
                   >
-                    <option value="">-- 請選擇單位 --</option>
-                    {filteredSortedUnits.map((u) => {
-                      const statusText = u.successCount === 0 ? ' (首發單位)' : ` (輪派成功: ${u.successCount}次)`;
-                      return (
-                        <option key={u.id} value={u.name}>
-                          {u.name} {statusText}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    查看單位輪序表
+                  </button>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      id="bUnitName"
+                      value={bUnitSearchTerm}
+                      onFocus={() => setIsBUnitDropdownOpen(true)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setBUnitSearchTerm(val);
+                        setIsBUnitDropdownOpen(true);
+                        
+                        const matchedUnit = filteredSortedUnits.find(u => u.name === val);
+                        if (matchedUnit) {
+                          setBUnitName(matchedUnit.name);
+                        } else {
+                          setBUnitName('');
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setIsBUnitDropdownOpen(false);
+                          if (bUnitName) {
+                            setBUnitSearchTerm(bUnitName);
+                          } else {
+                            setBUnitSearchTerm('');
+                          }
+                        }, 200);
+                      }}
+                      className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-sm"
+                      placeholder="輸入關鍵字以搜尋 B 單位..."
+                    />
+                    {isBUnitDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
+                        {filteredBUnits.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-slate-400 italic">
+                            查無此單位
+                          </div>
+                        ) : (
+                          filteredBUnits.map((u) => {
+                            const statusText = u.rating > 0 ? ` (⭐ ${u.rating}星)` : ' (無評分)';
+                            return (
+                              <div
+                                key={u.id}
+                                onClick={() => {
+                                  setBUnitName(u.name);
+                                  setBUnitSearchTerm(u.name);
+                                  setIsBUnitDropdownOpen(false);
+                                }}
+                                className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-700 font-medium flex items-center justify-between"
+                              >
+                                <span>{u.name}</span>
+                                <span className="text-xs text-amber-500 font-bold shrink-0 ml-2">
+                                  {statusText}
+                                </span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {bUnitName && (
                     <button
                       type="button"
@@ -718,6 +816,45 @@ export default function CaseForm({ activeCase, onClose }) {
           isOpen={editUnitOpen}
           onClose={() => setEditUnitOpen(false)}
         />
+      )}
+
+      {/* 單位輪序表參考彈窗 */}
+      {isUnitListOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 flex justify-between items-center text-white shrink-0">
+              <h3 className="font-bold text-white mb-0 text-sm">「{serviceContent}」碼別輪序表 (依派案次數排序)</h3>
+              <button type="button" onClick={() => setIsUnitListOpen(false)} className="hover:bg-white/20 p-1 rounded-full text-white cursor-pointer transition">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <div className="space-y-2">
+                {fairRotationUnits.length === 0 ? (
+                  <div className="text-sm text-slate-400 text-center py-4">無符合條件之單位</div>
+                ) : (
+                  fairRotationUnits.map((u, index) => (
+                    <div key={u.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-purple-50/50 transition">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 text-sm">{index + 1}. {u.name}</span>
+                        <div className="text-[10px] text-slate-400 mt-0.5 flex gap-2">
+                          <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">
+                            本碼別派案成功: {u.codeDispatchCount} 次
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-0.5" title={`${u.rating || 0}星`}>
+                        {u.rating > 0 ? Array.from({ length: u.rating }).map((_, i) => (
+                          <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                        )) : <span className="text-xs text-slate-400">無星級</span>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

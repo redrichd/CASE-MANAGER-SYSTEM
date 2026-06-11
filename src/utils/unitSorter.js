@@ -64,35 +64,34 @@ export function calculateUnitStats(units, cases) {
 }
 
 /**
- * 依據公平輪序邏輯對單位進行排序
+ * 依據星級評分對單位進行排序 (星級越高越前面，同星級依 ID 排序)
  * @param {Array} unitsWithStats 
  * @returns {Array} 排序後的單位陣列
  */
 export function sortUnits(unitsWithStats) {
-  const firstTier = [];  // 首發梯隊: successCount = 0 & isStopped = false
-  const secondTier = []; // 輪值梯隊: successCount > 0 & isStopped = false
-  const stoppedTier = []; // 停派梯隊: isStopped = true
+  const activeUnits = [];
+  const stoppedUnits = [];
 
   unitsWithStats.forEach((unit) => {
     if (unit.isStopped) {
-      stoppedTier.push(unit);
-    } else if (unit.successCount === 0) {
-      firstTier.push(unit);
+      stoppedUnits.push(unit);
     } else {
-      secondTier.push(unit);
+      activeUnits.push(unit);
     }
   });
 
-  firstTier.sort((a, b) => a.id.localeCompare(b.id));
-
-  secondTier.sort((a, b) => {
-    if (a.latestSuccessTime !== b.latestSuccessTime) {
-      return a.latestSuccessTime - b.latestSuccessTime;
+  // 排序活躍單位：優先依據星級 (由大到小)，其次依據 ID
+  activeUnits.sort((a, b) => {
+    const ratingA = a.rating || 0;
+    const ratingB = b.rating || 0;
+    if (ratingA !== ratingB) {
+      return ratingB - ratingA;
     }
     return a.id.localeCompare(b.id);
   });
 
-  stoppedTier.sort((a, b) => a.id.localeCompare(b.id));
+  // 排序停派單位：依據 ID
+  stoppedUnits.sort((a, b) => a.id.localeCompare(b.id));
 
-  return [...firstTier, ...secondTier, ...stoppedTier];
+  return [...activeUnits, ...stoppedUnits];
 }
