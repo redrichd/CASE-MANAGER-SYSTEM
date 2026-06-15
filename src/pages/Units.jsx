@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUnits } from '../contexts/UnitContext';
 import { useCases } from '../contexts/CaseContext';
+import { useAuth } from '../contexts/AuthContext';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3 } from 'lucide-react';
 import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
@@ -27,6 +28,7 @@ const SERVICE_FILTERS = [
 export default function Units() {
   const { units, toggleStopUnit, addUnit, updateUnit } = useUnits();
   const { cases } = useCases();
+  const { isAdmin } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -338,14 +340,16 @@ export default function Units() {
                             編輯
                           </button>
                           
-                          <button
-                            onClick={() => handleOpenAdminEdit(u)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-750 border border-amber-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
-                            title="管理員編輯數據"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            管理員編輯
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleOpenAdminEdit(u)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-750 border border-amber-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                              title="管理員編輯數據"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              管理員編輯
+                            </button>
+                          )}
 
                           <button
                             onClick={() => {

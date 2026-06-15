@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStaff } from '../contexts/StaffContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, Plus, Edit3, Trash2, X, Save, User } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -17,6 +18,7 @@ const tagColors = [
 
 export default function Staff() {
   const { staffList, addStaff, updateStaff, deleteStaff, areas, addArea, deleteArea } = useStaff();
+  const { isAdmin } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [areaFilter, setAreaFilter] = useState('全部區域');
@@ -110,67 +112,79 @@ export default function Staff() {
 
   return (
     <div className="space-y-6">
+      {!isAdmin && (
+        <div className="bg-[#f8fafc] border border-slate-200 text-slate-650 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-sm">
+          <span className="text-blue-500">ℹ️</span>
+          <span>唯讀模式：目前僅管理員 (Admin) 具有新增、編輯與刪除工作人員與區域之權限。</span>
+        </div>
+      )}
       
       {/* 頂部操作與篩選列 */}
       <div className="flex flex-col sm:flex-row justify-between items-center bg-[#f8fafc] border border-slate-200 rounded-xl p-3 mb-4 gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <button
-            onClick={() => {
-              setNewArea(areas[0] || '');
-              setIsAddOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition shadow-sm cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 text-[#2563eb]" />
-            新增工作人員
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  setNewArea(areas[0] || '');
+                  setIsAddOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-sm transition shadow-sm cursor-pointer shrink-0"
+              >
+                <Plus className="w-4 h-4 text-[#2563eb]" />
+                新增工作人員
+              </button>
 
-          <div className="h-6 w-px bg-slate-250 hidden sm:block shrink-0" />
+              <div className="h-6 w-px bg-slate-250 hidden sm:block shrink-0" />
+            </>
+          )}
 
           {/* 新增區域與動態標籤 */}
           <div className="flex flex-wrap items-center gap-2">
-            {isNewAreaInputOpen ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (newAreaName.trim()) {
-                    addArea(newAreaName.trim());
-                    setNewAreaName('');
-                    setIsNewAreaInputOpen(false);
-                  }
-                }}
-                className="flex items-center gap-1.5 animate-in slide-in-from-left duration-200"
-              >
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="輸入新區域"
-                  value={newAreaName}
-                  onChange={(e) => setNewAreaName(e.target.value)}
-                  className="rounded-lg border border-slate-250 px-2.5 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 shadow-sm"
-                />
-                <button
-                  type="submit"
-                  className="px-2.5 py-1 bg-blue-650 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
+            {isAdmin && (
+              isNewAreaInputOpen ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (newAreaName.trim()) {
+                      addArea(newAreaName.trim());
+                      setNewAreaName('');
+                      setIsNewAreaInputOpen(false);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 animate-in slide-in-from-left duration-200"
                 >
-                  確定
-                </button>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="輸入新區域"
+                    value={newAreaName}
+                    onChange={(e) => setNewAreaName(e.target.value)}
+                    className="rounded-lg border border-slate-250 px-2.5 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 shadow-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="px-2.5 py-1 bg-blue-650 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shadow-sm"
+                  >
+                    確定
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewAreaInputOpen(false)}
+                    className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-300 transition cursor-pointer"
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
                 <button
-                  type="button"
-                  onClick={() => setIsNewAreaInputOpen(false)}
-                  className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-300 transition cursor-pointer"
+                  onClick={() => setIsNewAreaInputOpen(true)}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-xs transition shadow-sm cursor-pointer shrink-0"
                 >
-                  取消
+                  <Plus className="w-3.5 h-3.5 text-[#2563eb]" />
+                  新增區域
                 </button>
-              </form>
-            ) : (
-              <button
-                onClick={() => setIsNewAreaInputOpen(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-xs transition shadow-sm cursor-pointer shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5 text-[#2563eb]" />
-                新增區域
-              </button>
+              )
             )}
 
             <div className="flex flex-wrap items-center gap-1.5 ml-1">
@@ -187,17 +201,19 @@ export default function Staff() {
                   >
                     <span className={`w-2 h-2 rounded-full ${color.dot}`} />
                     <span>{area}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteAreaTarget(area);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded-full hover:bg-black/5 text-slate-500 hover:text-slate-900 cursor-pointer flex items-center justify-center"
-                      title="刪除區域"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteAreaTarget(area);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded-full hover:bg-black/5 text-slate-500 hover:text-slate-900 cursor-pointer flex items-center justify-center"
+                        title="刪除區域"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </span>
                 );
               })}
@@ -229,13 +245,13 @@ export default function Staff() {
                 <th className="px-6 py-4">員工編號</th>
                 <th className="px-6 py-4">姓名</th>
                 <th className="px-6 py-4">服務區域</th>
-                <th className="px-6 py-4 text-right">操作</th>
+                {isAdmin && <th className="px-6 py-4 text-right">操作</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={isAdmin ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之人員
                   </td>
                 </tr>
@@ -260,24 +276,26 @@ export default function Staff() {
                         <span className="text-slate-400 text-xs italic">無區域</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 items-center">
-                        <button
-                          onClick={() => handleStartEdit(s)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          編輯
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(s)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          刪除
-                        </button>
-                      </div>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2 items-center">
+                          <button
+                            onClick={() => handleStartEdit(s)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            編輯
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(s)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            刪除
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

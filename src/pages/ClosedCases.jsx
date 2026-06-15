@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Search, Eye, Archive, Trash2 } from 'lucide-react';
 
 export default function ClosedCases() {
   const { cases, deleteCase } = useCases();
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCase, setSelectedCase] = useState(null);
 
@@ -111,13 +113,15 @@ export default function ClosedCases() {
                             <Eye className="w-3.5 h-3.5" />
                             檢視
                           </button>
-                          <button
-                            onClick={() => handleDelete(c.id)}
-                            className="inline-flex items-center gap-1 text-xs text-red-650 hover:text-red-700 font-bold transition cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            刪除
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleDelete(c.id)}
+                              className="inline-flex items-center gap-1 text-xs text-red-650 hover:text-red-700 font-bold transition cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              刪除
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
