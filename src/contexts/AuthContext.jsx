@@ -2,7 +2,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, setDoc, updateDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -79,8 +79,22 @@ export function AuthProvider({ children }) {
           const querySnapshot = await getDocs(q);
           
           if (!querySnapshot.empty) {
-            const staffData = querySnapshot.docs[0].data();
-            if (staffData.role === 'admin') {
+            const staffDoc = querySnapshot.docs[0];
+            const staffData = staffDoc.data();
+            
+            // 檢查是否在 VITE_ADMIN_EMAILS 名單中
+            const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
+            const adminEmails = adminEmailsStr
+              .split(',')
+              .map((e) => e.trim().toLowerCase())
+              .filter(Boolean);
+
+            if (adminEmails.includes(user.email.toLowerCase())) {
+              isUserAdmin = true;
+              if (staffData.role !== 'admin') {
+                await updateDoc(doc(db, 'staff', staffDoc.id), { role: 'admin' });
+              }
+            } else if (staffData.role === 'admin') {
               isUserAdmin = true;
             } else if (staffData.role === 'pending') {
               isUserPending = true;
