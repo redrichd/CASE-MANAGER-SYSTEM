@@ -13,7 +13,7 @@ import './App.css';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('activeCases');
-  const { currentUser, loading, loginWithGoogle, loginSimulated, logout, role } = useAuth();
+  const { currentUser, loading, loginWithGoogle, loginSimulated, logout, role, isPending } = useAuth();
 
   if (loading) {
     return (
@@ -72,13 +72,59 @@ function AppContent() {
                 </button>
                 <button
                   onClick={() => loginSimulated('user')}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-slate-650 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition cursor-pointer"
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-505 transition cursor-pointer"
                 >
                   以 模擬一般使用者 (User) 登入
+                </button>
+                <button
+                  onClick={() => loginSimulated('pending')}
+                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-slate-800 bg-amber-400 hover:bg-amber-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition cursor-pointer"
+                >
+                  以 模擬待審核 (Pending) 登入
                 </button>
               </div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentUser && isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9] text-slate-800 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 bg-white border border-slate-200 rounded-3xl p-8 shadow-lg text-center">
+          <div className="bg-amber-500 p-4 rounded-2xl text-white shadow-md shadow-amber-500/25 inline-block mb-4">
+            <svg className="w-8 h-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-800 tracking-wide mb-1">
+            帳號權限審核中
+          </h2>
+          <p className="text-sm text-slate-500 font-medium px-4">
+            您的帳號目前尚未開通。請聯絡系統管理員審核您的申請，並將您的角色設定為一般使用者。
+          </p>
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left font-medium space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">申請姓名</span>
+              <span className="text-slate-700 font-bold">{currentUser.displayName || '未提供'}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">綁定信箱</span>
+              <span className="text-slate-700 font-mono font-bold">{currentUser.email}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-400">目前狀態</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">待審核 (Pending)</span>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="w-full flex justify-center py-3 px-4 border border-slate-200 rounded-xl shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition cursor-pointer"
+          >
+            登出並切換帳號
+          </button>
         </div>
       </div>
     );

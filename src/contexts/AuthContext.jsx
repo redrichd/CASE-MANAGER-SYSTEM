@@ -2,7 +2,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, query, where, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -37,6 +37,20 @@ export function AuthProvider({ children }) {
     }
     return false;
   });
+
+  const [isPending, setIsPending] = useState(() => {
+    if (import.meta.env.MODE === 'test') {
+      return false;
+    }
+    if (!isFirebaseConfigured()) {
+      const localUser = localStorage.getItem('simulated_user');
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        return parsed.email === 'pending@simulated.com';
+      }
+    }
+    return false;
+  });
   
   const [loading, setLoading] = useState(() => {
     if (import.meta.env.MODE === 'test') {
@@ -57,14 +71,22 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         let isUserAdmin = false;
+        let isUserPending = false;
         try {
-          // 1. 查詢 Firestore 'admins' collection，文件 ID 為小寫 email
-          const adminDocRef = doc(db, 'admins', user.email.toLowerCase());
-          const adminDocSnap = await getDoc(adminDocRef);
-          if (adminDocSnap.exists()) {
-            isUserAdmin = true;
+          // 1. 查詢 Firestore 'staff' 集合，尋找 email 符合的人員
+          const staffRef = collection(db, 'staff');
+          const q = query(staffRef, where('email', '==', user.email.toLowerCase()));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const staffData = querySnapshot.docs[0].data();
+            if (staffData.role === 'admin') {
+              isUserAdmin = true;
+            } else if (staffData.role === 'pending') {
+              isUserPending = true;
+            }
           } else {
-            // 2. Fallback: 比對環境變數 VITE_ADMIN_EMAILS，若符合則自動寫入 Firestore
+            // 2. Fallback: 比對環境變數 VITE_ADMIN_EMAILS，若是管理員則建立 admin 員工
             const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
             const adminEmails = adminEmailsStr
               .split(',')
@@ -73,16 +95,36 @@ export function AuthProvider({ children }) {
 
             if (adminEmails.includes(user.email.toLowerCase())) {
               isUserAdmin = true;
-              await setDoc(adminDocRef, {
+              const newAdminStaff = {
+                empId: 'ADMIN',
+                name: user.displayName || '系統管理員',
+                gender: 'M',
+                area: '',
+                title: '系統管理員',
                 email: user.email.toLowerCase(),
-                addedAt: new Date().toISOString(),
-                memo: 'Auto initialized from VITE_ADMIN_EMAILS'
-              });
+                role: 'admin'
+              };
+              await setDoc(doc(db, 'staff', 'ADMIN'), newAdminStaff);
+            } else {
+              // 3. 自動註冊為 pending (待審核) 狀態
+              isUserPending = true;
+              const emailPrefix = user.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 5);
+              const generatedId = `P_${emailPrefix}_${Math.floor(100 + Math.random() * 900)}`;
+              const newPendingStaff = {
+                empId: generatedId,
+                name: user.displayName || '新申請人',
+                gender: 'F',
+                area: '',
+                title: '申請人',
+                email: user.email.toLowerCase(),
+                role: 'pending'
+              };
+              await setDoc(doc(db, 'staff', generatedId), newPendingStaff);
             }
           }
         } catch (error) {
-          console.error('Error checking admin status in Firestore:', error);
-          // 發生查詢錯誤時，退回比對環境變數
+          console.error('Error querying staff for admin check:', error);
+          // 發生錯誤時的 fallback 檢查環境變數
           const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
           const adminEmails = adminEmailsStr
             .split(',')
@@ -91,8 +133,10 @@ export function AuthProvider({ children }) {
           isUserAdmin = adminEmails.includes(user.email.toLowerCase());
         }
         setIsAdmin(isUserAdmin);
+        setIsPending(isUserPending);
       } else {
         setIsAdmin(false);
+        setIsPending(false);
       }
       setCurrentUser(user);
       setLoading(false);
@@ -116,12 +160,13 @@ export function AuthProvider({ children }) {
 
   const loginSimulated = (role) => {
     const user = {
-      email: role === 'admin' ? 'admin@simulated.com' : 'user@simulated.com',
-      displayName: role === 'admin' ? '模擬管理員 (Admin)' : '模擬使用者 (User)',
+      email: role === 'admin' ? 'admin@simulated.com' : (role === 'pending' ? 'pending@simulated.com' : 'user@simulated.com'),
+      displayName: role === 'admin' ? '模擬管理員 (Admin)' : (role === 'pending' ? '模擬待審核 (Pending)' : '模擬使用者 (User)'),
       photoURL: '',
       isSimulated: true,
     };
     setIsAdmin(role === 'admin');
+    setIsPending(role === 'pending');
     setCurrentUser(user);
     localStorage.setItem('simulated_user', JSON.stringify(user));
   };
@@ -135,6 +180,7 @@ export function AuthProvider({ children }) {
       }
     } else {
       setIsAdmin(false);
+      setIsPending(false);
       setCurrentUser(null);
       localStorage.removeItem('simulated_user');
     }
@@ -145,7 +191,8 @@ export function AuthProvider({ children }) {
       value={{
         currentUser,
         isAdmin,
-        role: isAdmin ? 'admin' : 'user',
+        isPending,
+        role: isAdmin ? 'admin' : (isPending ? 'pending' : 'user'),
         loading,
         loginWithGoogle,
         loginSimulated,
@@ -168,6 +215,7 @@ export function useAuth() {
         isSimulated: true,
       },
       isAdmin: true,
+      isPending: false,
       role: 'admin',
       loading: false,
       loginWithGoogle: async () => {},

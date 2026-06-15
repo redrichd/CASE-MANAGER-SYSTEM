@@ -60,7 +60,6 @@ export function StaffProvider({ children }) {
         });
 
         // 自動合併 initialStaff，如果資料庫中沒有該工號或名字，就寫入（保證不重複且補齊名單）
-        let updatedDb = false;
         for (const s of initialStaff) {
           const exists = fetchedStaff.some(
             (fs) => fs.empId === s.empId || fs.name === s.name
@@ -68,7 +67,6 @@ export function StaffProvider({ children }) {
           if (!exists) {
             await setDoc(doc(db, 'staff', s.empId), s);
             fetchedStaff.push(s);
-            updatedDb = true;
           }
         }
 
@@ -98,14 +96,30 @@ export function StaffProvider({ children }) {
     }
   };
 
-  const updateStaff = async (empId, updatedFields) => {
-    const updated = staffList.map((s) => (s.empId === empId ? { ...s, ...updatedFields } : s));
+  const updateStaff = async (oldEmpId, updatedFields) => {
+    const hasEmpIdChanged = updatedFields.empId && updatedFields.empId !== oldEmpId;
+    
+    let updated;
+    if (hasEmpIdChanged) {
+      updated = staffList.map((s) => (s.empId === oldEmpId ? { ...s, ...updatedFields } : s))
+        .sort((a, b) => a.empId.localeCompare(b.empId));
+    } else {
+      updated = staffList.map((s) => (s.empId === oldEmpId ? { ...s, ...updatedFields } : s));
+    }
+    
     setStaffList(updated);
     localStorage.setItem('local_staff_list', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'staff', empId), updatedFields);
+        if (hasEmpIdChanged) {
+          const oldStaff = staffList.find(s => s.empId === oldEmpId) || {};
+          const mergedStaff = { ...oldStaff, ...updatedFields };
+          await setDoc(doc(db, 'staff', updatedFields.empId), mergedStaff);
+          await deleteDoc(doc(db, 'staff', oldEmpId));
+        } else {
+          await updateDoc(doc(db, 'staff', oldEmpId), updatedFields);
+        }
       } catch (error) {
         console.error('Error updating staff in Firestore:', error);
       }

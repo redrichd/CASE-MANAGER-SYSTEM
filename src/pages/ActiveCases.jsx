@@ -46,12 +46,7 @@ export default function ActiveCases() {
     setConfirmCloseId(null);
   };
 
-  // 格式化日期為 YYYY/MM/DD
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const datePart = dateStr.split('T')[0];
-    return datePart.replace(/-/g, '/');
-  };
+
 
   // 格式化日期時間為 YYYY/MM/DD HH:mm
   const formatDateTime = (dateTimeStr) => {

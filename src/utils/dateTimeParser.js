@@ -12,7 +12,7 @@ export function toHalfWidth(str) {
 
 /**
  * 解析複製貼上的日期時間字串，支援民國年、西元年、全形半形、各種分隔符號
- * @param {string} inputStr 輸入的字串，例如 "115/05/04 19:33:15" 或 "１１５／０５／０４　１９：３３：１５"
+ * @param {string} inputStr 輸入的字串，例如 "115/05/04 19:33:15" 或 "１１５／０５／０４ １９：３３：１５"
  * @param {'date' | 'datetime-local'} type 目標輸入欄位類型
  * @returns {string | null} 格式化後的結果字串 (YYYY-MM-DD 或 YYYY-MM-DDTHH:mm:ss)，解析失敗傳回 null
  */

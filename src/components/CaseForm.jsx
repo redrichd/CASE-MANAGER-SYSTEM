@@ -76,14 +76,7 @@ export default function CaseForm({ activeCase, onClose }) {
     return false;
   })();
 
-  // 動態產生區域選項：包含所有人員的區域、預設區域與當前個案的區域
-  const availableAreas = Array.from(new Set([
-    ...staffList.map((s) => s.area),
-    ...(activeCase?.area ? [activeCase.area] : []),
-    '新莊區',
-    '三蘆區',
-    '板中永區'
-  ].filter(Boolean)));
+
 
   // 計算與排序 B 單位下拉選單 (過濾服務項目並隱藏停派單位)
   const statsUnits = calculateUnitStats(units, cases);
@@ -533,7 +526,7 @@ export default function CaseForm({ activeCase, onClose }) {
                     value={delayReason}
                     onChange={(e) => setDelayReason(e.target.value)}
                     className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-red-500 min-h-[80px]"
-                    placeholder="請輸入逾時說明..."
+                    placeholder="請輸入白話逾時原因..."
                   />
                 </div>
               </div>

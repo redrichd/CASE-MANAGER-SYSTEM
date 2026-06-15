@@ -31,11 +31,16 @@ export default function Staff() {
   const [newName, setNewName] = useState('');
   const [newGender, setNewGender] = useState('F');
   const [newArea, setNewArea] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState('user');
 
   // 編輯人員表單狀態
+  const [editEmpId, setEditEmpId] = useState('');
   const [editName, setEditName] = useState('');
   const [editGender, setEditGender] = useState('F');
   const [editArea, setEditArea] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState('user');
 
   // 新增區域狀態
   const [isNewAreaInputOpen, setIsNewAreaInputOpen] = useState(false);
@@ -44,10 +49,17 @@ export default function Staff() {
 
   // 過濾搜尋與區域
   const filteredStaff = staffList.filter((s) => {
+    const emailStr = s.email || '';
+    const roleStr = s.role || 'user';
+    const roleMap = { admin: '管理員', user: '一般使用者', pending: '待審核' };
+    const roleChinese = roleMap[roleStr] || '一般使用者';
+
     const matchesSearch =
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.area && s.area.toLowerCase().includes(searchTerm.toLowerCase()));
+      (s.area && s.area.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      emailStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      roleChinese.includes(searchTerm);
     const matchesArea = areaFilter === '全部區域' || s.area === areaFilter;
     return matchesSearch && matchesArea;
   });
@@ -69,7 +81,9 @@ export default function Staff() {
       empId: newEmpId.trim(),
       name: newName.trim(),
       gender: newGender,
-      area: newArea
+      area: newArea,
+      email: newEmail.trim().toLowerCase(),
+      role: newRole
     });
 
     // 重設新增表單
@@ -77,14 +91,19 @@ export default function Staff() {
     setNewName('');
     setNewGender('F');
     setNewArea('');
+    setNewEmail('');
+    setNewRole('user');
     setIsAddOpen(false);
   };
 
   const handleStartEdit = (staff) => {
     setEditingStaff(staff);
+    setEditEmpId(staff.empId);
     setEditName(staff.name);
     setEditGender(staff.gender || 'F');
     setEditArea(staff.area || '');
+    setEditEmail(staff.email || '');
+    setEditRole(staff.role || 'user');
   };
 
   const handleSaveEdit = (e) => {
@@ -93,11 +112,23 @@ export default function Staff() {
       alert('姓名不能為空！');
       return;
     }
+    if (!editEmpId.trim()) {
+      alert('員工編號不能為空！');
+      return;
+    }
+
+    if (editEmpId.trim() !== editingStaff.empId && staffList.some((s) => s.empId === editEmpId.trim())) {
+      alert('員工編號已存在，請使用不同的編號！');
+      return;
+    }
 
     updateStaff(editingStaff.empId, {
+      empId: editEmpId.trim(),
       name: editName.trim(),
       gender: editGender,
-      area: editArea
+      area: editArea,
+      email: editEmail.trim().toLowerCase(),
+      role: editRole
     });
 
     setEditingStaff(null);
@@ -245,13 +276,15 @@ export default function Staff() {
                 <th className="px-6 py-4">員工編號</th>
                 <th className="px-6 py-4">姓名</th>
                 <th className="px-6 py-4">服務區域</th>
+                <th className="px-6 py-4">綁定信箱</th>
+                <th className="px-6 py-4">角色權限</th>
                 {isAdmin && <th className="px-6 py-4 text-right">操作</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={isAdmin ? 6 : 5} className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之人員
                   </td>
                 </tr>
@@ -274,6 +307,24 @@ export default function Staff() {
                         </span>
                       ) : (
                         <span className="text-slate-400 text-xs italic">無區域</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-slate-600">
+                      {s.email ? s.email : <span className="text-slate-400 italic">未提供</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {s.role === 'admin' ? (
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-50 border border-red-200 text-red-750">
+                          管理員 (Admin)
+                        </span>
+                      ) : s.role === 'pending' ? (
+                        <span className="px-2.5 py-1 rounded text-xs font-bold bg-amber-100 border border-amber-250 text-amber-800 animate-pulse">
+                          待審核 (Pending)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 border border-slate-200 text-slate-650">
+                          一般使用者 (User)
+                        </span>
                       )}
                     </td>
                     {isAdmin && (
@@ -380,6 +431,34 @@ export default function Staff() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  綁定信箱 (Gmail)
+                </label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  placeholder="請輸入綁定之 Gmail 信箱"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  角色權限
+                </label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="user">一般使用者 (User)</option>
+                  <option value="admin">管理員 (Admin)</option>
+                  <option value="pending">待審核 (Pending)</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4 mt-4 shrink-0">
                 <button
                   type="button"
@@ -417,14 +496,24 @@ export default function Staff() {
             <form onSubmit={handleSaveEdit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">
-                  員工編號
+                  員工編號 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  disabled
-                  value={editingStaff.empId}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-100 text-slate-500 cursor-not-allowed"
+                  disabled={editingStaff.role !== 'pending'}
+                  required
+                  value={editEmpId}
+                  onChange={(e) => setEditEmpId(e.target.value)}
+                  className={`w-full rounded-xl border border-slate-200 px-3 py-2 text-sm ${
+                    editingStaff.role === 'pending'
+                      ? 'bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                      : 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                  }`}
+                  placeholder="請輸入正式工號"
                 />
+                {editingStaff.role === 'pending' && (
+                  <p className="text-[10px] text-amber-600 mt-1">💡 目前此人為待審核狀態，請將臨時工號改為正式工號並指派角色。</p>
+                )}
               </div>
 
               <div>
@@ -468,6 +557,34 @@ export default function Staff() {
                   {areas.map((a) => (
                     <option key={a} value={a}>{a}</option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  綁定信箱 (Gmail)
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  placeholder="請輸入綁定之 Gmail 信箱"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  角色權限
+                </label>
+                <select
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="user">一般使用者 (User)</option>
+                  <option value="admin">管理員 (Admin)</option>
+                  <option value="pending">待審核 (Pending)</option>
                 </select>
               </div>
 
