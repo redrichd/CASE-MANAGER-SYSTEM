@@ -84,15 +84,20 @@ describe('Unit Sorter & Stats Calculator', () => {
     expect(unitA.latestSuccessTime).toBe(1234567890);
   });
 
-  it('should sort units based on the round-robin rules', () => {
+  it('should sort units based on rating and ID', () => {
     const stats = calculateUnitStats(mockUnits, mockCases);
+    // 設置不同的 rating 以測試星級排序
+    stats[0].rating = 2; // 單位A (U001)
+    stats[2].rating = 3; // 單位C (U003)
+    
     const sorted = sortUnits(stats);
 
+    // 單位C (3星) 應該最前，其次為 單位A (2星)，其餘0星依 ID 排序
     expect(sorted[0].name).toBe('單位C');
-    expect(sorted[1].name).toBe('單位D');
-    expect(sorted[2].name).toBe('單位A');
-    expect(sorted[3].name).toBe('單位B');
-    expect(sorted[4].name).toBe('單位E');
+    expect(sorted[1].name).toBe('單位A');
+    expect(sorted[2].name).toBe('單位B'); // U002
+    expect(sorted[3].name).toBe('單位D'); // U004
+    expect(sorted[4].name).toBe('單位E'); // isStopped
   });
 });
 

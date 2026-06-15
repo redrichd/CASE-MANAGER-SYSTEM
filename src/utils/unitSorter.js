@@ -80,19 +80,12 @@ export function sortUnits(unitsWithStats) {
     }
   });
 
-  // 排序活躍單位：優先依據輪排規則（首發梯隊 successCount === 0 > 輪值梯隊 依 latestSuccessTime 升冪），同條件依 ID 排序
+  // 排序活躍單位：依據星級評分 (由大到小)，星級相同依 ID 排序
   activeUnits.sort((a, b) => {
-    const successA = a.successCount || 0;
-    const successB = b.successCount || 0;
-    if (successA !== successB) {
-      return successA - successB;
-    }
-    if (successA > 0) {
-      const timeA = a.latestSuccessTime || 0;
-      const timeB = b.latestSuccessTime || 0;
-      if (timeA !== timeB) {
-        return timeA - timeB;
-      }
+    const ratingA = a.rating || 0;
+    const ratingB = b.rating || 0;
+    if (ratingA !== ratingB) {
+      return ratingB - ratingA;
     }
     return a.id.localeCompare(b.id);
   });

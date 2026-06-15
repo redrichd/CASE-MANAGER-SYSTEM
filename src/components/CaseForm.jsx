@@ -89,7 +89,8 @@ export default function CaseForm({ activeCase, onClose }) {
     return u.name.toLowerCase().includes(bUnitSearchTerm.toLowerCase());
   });
 
-  // 獨立計算「目前選擇碼別」的輪序表 (派案次數越少越前面)
+  // 獨立計算「目前選擇碼別」的輪序表 (派案次數越少越前面，悠康自家單位永遠優先排最前)
+  const YUKANG_NAME = "悠康事業有限公司附設新北市私立悠康居家長照機構";
   const fairRotationUnits = [...filteredSortedUnits].map(u => {
     const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
     const codeCount = cases.filter(c => 
@@ -99,6 +100,8 @@ export default function CaseForm({ activeCase, onClose }) {
     ).length;
     return { ...u, codeDispatchCount: codeCount };
   }).sort((a, b) => {
+    if (a.name === YUKANG_NAME && b.name !== YUKANG_NAME) return -1;
+    if (b.name === YUKANG_NAME && a.name !== YUKANG_NAME) return 1;
     if (a.codeDispatchCount !== b.codeDispatchCount) {
       return a.codeDispatchCount - b.codeDispatchCount; // 派案次數少的優先 (沒派過的在最前面)
     }
@@ -578,7 +581,7 @@ export default function CaseForm({ activeCase, onClose }) {
               <div>
                 <div className="flex justify-between items-end mb-1.5">
                   <label htmlFor="bUnitName" className="block text-xs font-bold text-slate-650">
-                    指派 B 單位 (依星級排序)
+                    指派 B 單位
                   </label>
                   <button
                     type="button"

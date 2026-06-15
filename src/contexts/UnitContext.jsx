@@ -11,6 +11,7 @@ const initialUnits = [
   { id: 'U003', name: '萬華社區關懷協會', services: ['BA'], isStopped: false, comments: [] },
   { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], isStopped: false, comments: [] },
   { id: 'U005', name: '信義停派居家機構', services: ['BA', 'DA'], isStopped: true, comments: [] },
+  { id: 'U007', name: '悠康事業有限公司附設新北市私立悠康居家長照機構', services: ['BA', 'GA09', 'SC09'], isStopped: false, comments: [], rating: 3 },
 ];
 
 export function UnitProvider({ children }) {
@@ -109,7 +110,12 @@ export function UnitProvider({ children }) {
   };
 
   const addUnit = async (newUnit) => {
-    const newId = `U${String(units.length + 1).padStart(3, '0')}`;
+    const ids = units.map(u => {
+      const match = u.id.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    });
+    const maxId = ids.length > 0 ? Math.max(...ids) : 0;
+    const newId = `U${String(maxId + 1).padStart(3, '0')}`;
     const formattedUnit = {
       ...newUnit,
       id: newId,

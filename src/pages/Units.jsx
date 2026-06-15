@@ -170,6 +170,22 @@ export default function Units() {
     setOverrideStop(0);
   };
 
+  const YUKANG_NAME = "悠康事業有限公司附設新北市私立悠康居家長照機構";
+  const getInternalRate = () => {
+    const dispatchTypes = new Set(["新案_初評", "新案_出備", "自行發掘"]);
+    const filteredCases = cases.filter(c => 
+      dispatchTypes.has(c.dispatchType) && 
+      c.serviceContent === 'BA'
+    );
+    const denominator = filteredCases.length;
+    if (denominator === 0) return '0.0';
+    
+    const numerator = filteredCases.filter(c => c.bUnitName === YUKANG_NAME).length;
+    return ((numerator / denominator) * 100).toFixed(1);
+  };
+
+  const internalRate = getInternalRate();
+
   return (
     <div className="space-y-6">
       
@@ -183,6 +199,12 @@ export default function Units() {
             <Plus className="w-4 h-4 text-purple-600" />
             新增合作單位
           </button>
+          
+          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-250 rounded-xl text-xs font-bold text-emerald-700 flex items-center gap-1.5 shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>BA 內轉率：</span>
+            <span className="font-mono text-sm font-black">{internalRate}%</span>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">
