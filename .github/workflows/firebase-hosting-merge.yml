@@ -11,6 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Environment Variables
+        run: |
+          echo "Verifying build secrets..."
+          MISSING_SECRETS=0
+          if [ -z "${{ secrets.VITE_FIREBASE_API_KEY }}" ]; then
+            echo "::error::GitHub Secret 'VITE_FIREBASE_API_KEY' is missing!"
+            MISSING_SECRETS=1
+          fi
+          if [ -z "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" ]; then
+            echo "::error::GitHub Secret 'VITE_FIREBASE_PROJECT_ID' is missing!"
+            MISSING_SECRETS=1
+          fi
+          if [ "$MISSING_SECRETS" -eq "1" ]; then
+            echo "Please configure the required secrets in GitHub: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
       - run: npm install && npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
