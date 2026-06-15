@@ -1,14 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
-import { auth, isFirebaseConfigured } from '../services/firebase';
+import { auth, db, isFirebaseConfigured } from '../services/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     // 測試環境預設登入模擬管理員以確保整合測試通過
-    if (process.env.NODE_ENV === 'test') {
+    if (import.meta.env.MODE === 'test') {
       return {
         email: 'admin@simulated.com',
         displayName: '模擬管理員 (Admin)',
@@ -22,27 +23,30 @@ export function AuthProvider({ children }) {
     }
     return null;
   });
+
+  const [isAdmin, setIsAdmin] = useState(() => {
+    if (import.meta.env.MODE === 'test') {
+      return true;
+    }
+    if (!isFirebaseConfigured()) {
+      const localUser = localStorage.getItem('simulated_user');
+      if (localUser) {
+        const parsed = JSON.parse(localUser);
+        return parsed.email === 'admin@simulated.com';
+      }
+    }
+    return false;
+  });
   
   const [loading, setLoading] = useState(() => {
-    if (process.env.NODE_ENV === 'test') {
+    if (import.meta.env.MODE === 'test') {
       return false;
     }
     return isFirebaseConfigured() ? true : false;
   });
 
-  // 解析 Admin Email 列表
-  const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
-  const adminEmails = adminEmailsStr
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  const isAdmin = currentUser 
-    ? adminEmails.includes(currentUser.email?.toLowerCase() || '') || currentUser.email === 'admin@simulated.com'
-    : false;
-
   useEffect(() => {
-    if (process.env.NODE_ENV === 'test') {
+    if (import.meta.env.MODE === 'test') {
       return;
     }
     
@@ -50,7 +54,46 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        let isUserAdmin = false;
+        try {
+          // 1. 查詢 Firestore 'admins' collection，文件 ID 為小寫 email
+          const adminDocRef = doc(db, 'admins', user.email.toLowerCase());
+          const adminDocSnap = await getDoc(adminDocRef);
+          if (adminDocSnap.exists()) {
+            isUserAdmin = true;
+          } else {
+            // 2. Fallback: 比對環境變數 VITE_ADMIN_EMAILS，若符合則自動寫入 Firestore
+            const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
+            const adminEmails = adminEmailsStr
+              .split(',')
+              .map((e) => e.trim().toLowerCase())
+              .filter(Boolean);
+
+            if (adminEmails.includes(user.email.toLowerCase())) {
+              isUserAdmin = true;
+              await setDoc(adminDocRef, {
+                email: user.email.toLowerCase(),
+                addedAt: new Date().toISOString(),
+                memo: 'Auto initialized from VITE_ADMIN_EMAILS'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error checking admin status in Firestore:', error);
+          // 發生查詢錯誤時，退回比對環境變數
+          const adminEmailsStr = import.meta.env.VITE_ADMIN_EMAILS || '';
+          const adminEmails = adminEmailsStr
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+          isUserAdmin = adminEmails.includes(user.email.toLowerCase());
+        }
+        setIsAdmin(isUserAdmin);
+      } else {
+        setIsAdmin(false);
+      }
       setCurrentUser(user);
       setLoading(false);
     });
@@ -78,18 +121,20 @@ export function AuthProvider({ children }) {
       photoURL: '',
       isSimulated: true,
     };
+    setIsAdmin(role === 'admin');
     setCurrentUser(user);
     localStorage.setItem('simulated_user', JSON.stringify(user));
   };
 
   const logout = async () => {
-    if (isFirebaseConfigured() && process.env.NODE_ENV !== 'test') {
+    if (isFirebaseConfigured() && import.meta.env.MODE !== 'test') {
       try {
         await signOut(auth);
       } catch (error) {
         console.error('Sign Out Error:', error);
       }
     } else {
+      setIsAdmin(false);
       setCurrentUser(null);
       localStorage.removeItem('simulated_user');
     }
@@ -115,7 +160,6 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    // 若無 Provider 包裹（如部分單元測試中直接渲染子組件），回傳預設管理員狀態以相容舊測試
     return {
       currentUser: {
         email: 'admin@simulated.com',

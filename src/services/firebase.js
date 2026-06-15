@@ -14,6 +14,9 @@ const firebaseConfig = {
 };
 
 export const isFirebaseConfigured = () => {
+  if (import.meta.env.MODE === 'test') {
+    return false;
+  }
   return !!(firebaseConfig.projectId && firebaseConfig.apiKey);
 };
 
