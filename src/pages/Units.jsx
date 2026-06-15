@@ -351,30 +351,52 @@ export default function Units() {
                             </button>
                           )}
 
-                          <button
-                            onClick={() => {
-                              if (u.isStopped || window.confirm(`是否確定要停派單位「${u.name}」？`)) {
-                                toggleStopUnit(u.id, u.stopCount);
-                              }
-                            }}
-                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all border ${
-                              u.isStopped
-                                ? 'bg-rose-50 border-rose-250 text-rose-600 hover:bg-rose-100'
-                                : 'bg-emerald-50 border-emerald-250 text-emerald-600 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {u.isStopped ? (
-                              <>
-                                <Ban className="w-3.5 h-3.5" />
-                                停派中 (點擊啟用)
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                啟用中 (點擊停派)
-                              </>
-                            )}
-                          </button>
+                          {isAdmin ? (
+                            <button
+                              onClick={() => {
+                                if (u.isStopped || window.confirm(`是否確定要停派單位「${u.name}」？`)) {
+                                  toggleStopUnit(u.id, u.stopCount);
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition-all border cursor-pointer ${
+                                u.isStopped
+                                  ? 'bg-rose-50 border-rose-250 text-rose-600 hover:bg-rose-100'
+                                  : 'bg-emerald-50 border-emerald-250 text-emerald-600 hover:bg-emerald-100'
+                              }`}
+                            >
+                              {u.isStopped ? (
+                                <>
+                                  <Ban className="w-3.5 h-3.5" />
+                                  停派中 (點擊啟用)
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  啟用中 (點擊停派)
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <span
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+                                u.isStopped
+                                  ? 'bg-rose-50 border-rose-250 text-rose-600'
+                                  : 'bg-emerald-50 border-emerald-250 text-emerald-600'
+                              }`}
+                            >
+                              {u.isStopped ? (
+                                <>
+                                  <Ban className="w-3.5 h-3.5" />
+                                  停派中
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  啟用中
+                                </>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
