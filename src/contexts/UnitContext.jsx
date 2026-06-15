@@ -71,11 +71,18 @@ export function UnitProvider({ children }) {
       if (u.id === id) {
         currentIsStopped = u.isStopped;
         nextStopCount = !currentIsStopped ? currentStopCount + 1 : currentStopCount;
-        return { 
+        const updatedUnit = { 
           ...u, 
           isStopped: !u.isStopped, 
           stopCount: nextStopCount 
         };
+        if (u.overrideStats) {
+          updatedUnit.overrideStats = {
+            ...u.overrideStats,
+            stopCount: nextStopCount
+          };
+        }
+        return updatedUnit;
       }
       return u;
     });
@@ -85,10 +92,18 @@ export function UnitProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'units', id), { 
+        const updatePayload = {
           isStopped: !currentIsStopped,
           stopCount: nextStopCount
-        });
+        };
+        const targetUnit = units.find(u => u.id === id);
+        if (targetUnit && targetUnit.overrideStats) {
+          updatePayload.overrideStats = {
+            ...targetUnit.overrideStats,
+            stopCount: nextStopCount
+          };
+        }
+        await updateDoc(doc(db, 'units', id), updatePayload);
       } catch (error) {
         console.error('Error toggling stop unit in Firestore:', error);
       }
@@ -96,13 +111,36 @@ export function UnitProvider({ children }) {
   };
 
   const updateUnit = async (id, updatedFields) => {
-    const updated = units.map((u) => (u.id === id ? { ...u, ...updatedFields } : u));
+    const updated = units.map((u) => {
+      if (u.id === id) {
+        const nextFields = { ...updatedFields };
+        if (u.overrideStats && typeof updatedFields.stopCount === 'number') {
+          nextFields.overrideStats = {
+            ...u.overrideStats,
+            stopCount: updatedFields.stopCount
+          };
+        }
+        return { ...u, ...nextFields };
+      }
+      return u;
+    });
+
+    // Firestore payload 同步更新
+    const targetUnit = units.find(u => u.id === id);
+    const dbFields = { ...updatedFields };
+    if (targetUnit && targetUnit.overrideStats && typeof updatedFields.stopCount === 'number') {
+      dbFields.overrideStats = {
+        ...targetUnit.overrideStats,
+        stopCount: updatedFields.stopCount
+      };
+    }
+
     setUnits(updated);
     localStorage.setItem('local_units', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'units', id), updatedFields);
+        await updateDoc(doc(db, 'units', id), dbFields);
       } catch (error) {
         console.error('Error updating unit in Firestore:', error);
       }
