@@ -198,6 +198,16 @@ export default function ClosedCases() {
                   <span className="text-xs text-slate-400 dark:text-slate-500 block">派案結果：</span>
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.dispatchResult || '無'}</span>
                 </div>
+                {selectedCase.secondRoundReason && (
+                  <div className="bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-3 mt-2">
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold block mb-1">
+                      {selectedCase.dispatchResult ? `${selectedCase.dispatchResult} 原因/備註：` : '派案原因/備註：'}
+                    </span>
+                    <p className="text-xs text-slate-650 dark:text-slate-400 leading-relaxed">
+                      {selectedCase.secondRoundReason}
+                    </p>
+                  </div>
+                )}
                 {selectedCase.delayReason && (
                   <div className="bg-red-50/50 dark:bg-red-950/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-3 mt-2">
                     <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold block mb-1">

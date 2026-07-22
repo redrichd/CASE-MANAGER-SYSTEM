@@ -55,6 +55,19 @@ describe('Unit Sorter & Stats Calculator', () => {
     expect(unitC.successCount).toBe(0);
     expect(unitC.stopCount).toBe(1);
     expect(unitC.latestSuccessTime).toBe(0);
+
+    const statsWithExternalSelfOpen = calculateUnitStats(mockUnits, [
+      ...mockCases,
+      {
+        id: 'C005',
+        bUnitName: '單位B',
+        dispatchResult: '外單位自開案',
+        submitDate: '2026-06-04T10:00',
+        isClosed: false,
+      }
+    ]);
+    const unitB = statsWithExternalSelfOpen.find(u => u.name === '單位B');
+    expect(unitB.designatedOther).toBe(1);
   });
 
   it('should override statistics when overrideStats is present', () => {

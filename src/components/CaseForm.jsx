@@ -28,7 +28,9 @@ export default function CaseForm({ activeCase, onClose }) {
   const [dispatchType, setDispatchType] = useState(activeCase?.dispatchType || '新案_初評');
   const [serviceContent, setServiceContent] = useState(activeCase?.serviceContent || 'BA');
   const [bUnitName, setBUnitName] = useState(activeCase?.bUnitName || '');
-  const [dispatchResult, setDispatchResult] = useState(activeCase?.dispatchResult || '');
+  const initialDispatchResult = activeCase?.dispatchResult === '案主指定(外單位)' ? '外單位自開案' : (activeCase?.dispatchResult || '');
+  const [dispatchResult, setDispatchResult] = useState(initialDispatchResult);
+  const [secondRoundReason, setSecondRoundReason] = useState(activeCase?.secondRoundReason || '');
   const [delayReason, setDelayReason] = useState(activeCase?.delayReason || '');
   const [isUnitCounseling, setIsUnitCounseling] = useState(activeCase?.isUnitCounseling || false);
   const [aUnitNotifyDate, setAUnitNotifyDate] = useState(activeCase?.aUnitNotifyDate || '');
@@ -92,12 +94,22 @@ export default function CaseForm({ activeCase, onClose }) {
   // 獨立計算「目前選擇碼別」的輪序表 (派案次數越少越前面，悠康自家單位永遠優先排最前)
   const YUKANG_NAME = "悠康事業有限公司附設新北市私立悠康居家長照機構";
   const fairRotationUnits = [...filteredSortedUnits].map(u => {
-    const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
-    const codeCount = cases.filter(c => 
-      c.bUnitName === u.name && 
-      c.serviceContent === serviceContent && 
-      successResults.has(c.dispatchResult)
-    ).length;
+    const codeCount = cases.filter(c => {
+      if (c.bUnitName !== u.name || c.serviceContent !== serviceContent) {
+        return false;
+      }
+      const result = c.dispatchResult;
+      const isYukang = c.bUnitName === YUKANG_NAME;
+      
+      // 服務提供
+      if (result === '服務提供') return true;
+      // 第二輪與出備已派案 (悠康計輪派，外單位被動救援保護不計輪派)
+      if (result === '服務提供(第二輪)' || result === '出備已派案') return isYukang;
+      // 懲罰挑案條款：逾時未回覆、無人力、單位因素無法接案 -> 照樣計輪派 (+1)
+      if (result === '逾時未回覆' || result === '無人力' || result === '單位因素無法接案') return true;
+      
+      return false;
+    }).length;
     return { ...u, codeDispatchCount: codeCount };
   }).sort((a, b) => {
     if (a.name === YUKANG_NAME && b.name !== YUKANG_NAME) return -1;
@@ -156,6 +168,13 @@ export default function CaseForm({ activeCase, onClose }) {
       return;
     }
 
+    // 防呆：派案結果為「服務提供(第二輪)」、「逾時未回覆」、「無人力」、「單位因素無法接案」時，必須填寫說明原因
+    const reasonRequiredResults = ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'];
+    if (reasonRequiredResults.includes(dispatchResult) && !secondRoundReason.trim()) {
+      alert(`派案結果為「${dispatchResult}」，必須填寫原因/備註！`);
+      return;
+    }
+
     // 檢查違規停派確認
     if (bUnitName && dispatchResult === '違規停派' && !pendingSave && !forceSave) {
       setWarningMsg(
@@ -203,6 +222,7 @@ export default function CaseForm({ activeCase, onClose }) {
       serviceContent,
       bUnitName,
       dispatchResult,
+      secondRoundReason: ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) ? secondRoundReason : '',
       isUnitCounseling,
       aUnitNotifyDate,
       bUnitStartDate,
@@ -677,14 +697,15 @@ export default function CaseForm({ activeCase, onClose }) {
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 >
                   <option value="">-- 請選擇結果 --</option>
-                  <option value="服務提供">服務提供 (輪排成功)</option>
-                  <option value="服務提供(第二輪)">服務提供(第二輪) (輪排成功)</option>
-                  <option value="出備已派案">出備已派案 (輪排成功)</option>
-                  <option value="案主指定(本單位)">案主指定(本單位) (不計成功)</option>
-                  <option value="案主指定(外單位)">案主指定(外單位) (不計成功)</option>
-                  <option value="無人力">無人力 (不計成功)</option>
-                  <option value="派案後取消">派案後取消 (不計成功)</option>
-                  <option value="逾時未回覆">逾時未回覆 (不計成功)</option>
+                  <option value="服務提供">服務提供 (計輪派)</option>
+                  <option value="服務提供(第二輪)">服務提供(第二輪) (不計輪派)</option>
+                  <option value="出備已派案">出備已派案 (不計輪派)</option>
+                  <option value="案主指定(本單位)">案主指定(本單位) (不計輪派)</option>
+                  <option value="外單位自開案">外單位自開案 (不計輪派)</option>
+                  <option value="無人力">無人力 (計輪派)</option>
+                  <option value="逾時未回覆">逾時未回覆 (計輪派)</option>
+                  <option value="單位因素無法接案">單位因素無法接案 (計輪派)</option>
+                  <option value="派案後取消">派案後取消 (不計輪派)</option>
                   <option value="違規停派">違規停派 (增加停派次數)</option>
                 </select>
               </div>
@@ -714,6 +735,23 @@ export default function CaseForm({ activeCase, onClose }) {
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 />
               </div>
+
+              {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) && (
+                <div className="col-span-1 md:col-span-3">
+                  <label htmlFor="secondRoundReason" className="block text-xs font-bold text-slate-650 mb-1.5">
+                    {dispatchResult} 原因/備註 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="secondRoundReason"
+                    required
+                    value={secondRoundReason}
+                    onChange={(e) => setSecondRoundReason(e.target.value)}
+                    className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder={`請填寫 ${dispatchResult} 原因/備註...`}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-6 py-2 mt-4">

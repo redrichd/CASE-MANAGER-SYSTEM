@@ -43,7 +43,7 @@ export function calculateUnitStats(units, cases) {
         }
       } else if (result === '案主指定(本單位)') {
         designatedThis++;
-      } else if (result === '案主指定(外單位)') {
+      } else if (result === '案主指定(外單位)' || result === '外單位自開案') {
         designatedOther++;
       }
     });

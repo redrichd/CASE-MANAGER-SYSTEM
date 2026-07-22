@@ -180,7 +180,12 @@ export default function Units() {
     const denominator = filteredCases.length;
     if (denominator === 0) return '0.0';
     
-    const numerator = filteredCases.filter(c => c.bUnitName === YUKANG_NAME).length;
+    const numerator = filteredCases.filter(c => {
+      const result = c.dispatchResult;
+      const isYukang = c.bUnitName === YUKANG_NAME;
+      // 內轉率邏輯：僅「自家悠康」於第一時間接案（服務提供 (第一輪)）時短計分子
+      return isYukang && result === '服務提供';
+    }).length;
     return ((numerator / denominator) * 100).toFixed(1);
   };
 
