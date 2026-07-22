@@ -788,7 +788,7 @@ export default function CaseForm({ activeCase, onClose }) {
                           );
                         }
                         if (['逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult)) {
-                          return <span className="text-amber-700 font-bold">次數 +1 (懲罰挑案條款，順位後移)</span>;
+                          return <span className="text-amber-700 font-bold">次數 +1 (順位後移)</span>;
                         }
                         if (['外單位自開案', '案主指定(本單位)'].includes(dispatchResult)) {
                           return <span className="text-blue-700 font-bold">次數 +0 (指定/自開案，不計輪排)</span>;
