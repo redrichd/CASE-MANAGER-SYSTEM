@@ -697,16 +697,16 @@ export default function CaseForm({ activeCase, onClose }) {
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                 >
                   <option value="">-- 請選擇結果 --</option>
-                  <option value="服務提供">服務提供 (計輪派)</option>
-                  <option value="服務提供(第二輪)">服務提供(第二輪) (不計輪派)</option>
-                  <option value="出備已派案">出備已派案 (不計輪派)</option>
-                  <option value="案主指定(本單位)">案主指定(本單位) (不計輪派)</option>
-                  <option value="外單位自開案">外單位自開案 (不計輪派)</option>
-                  <option value="無人力">無人力 (計輪派)</option>
-                  <option value="逾時未回覆">逾時未回覆 (計輪派)</option>
-                  <option value="單位因素無法接案">單位因素無法接案 (計輪派)</option>
-                  <option value="派案後取消">派案後取消 (不計輪派)</option>
-                  <option value="違規停派">違規停派 (增加停派次數)</option>
+                  <option value="服務提供">服務提供</option>
+                  <option value="服務提供(第二輪)">服務提供(第二輪)</option>
+                  <option value="出備已派案">出備已派案</option>
+                  <option value="案主指定(本單位)">案主指定(本單位)</option>
+                  <option value="外單位自開案">外單位自開案</option>
+                  <option value="無人力">無人力</option>
+                  <option value="逾時未回覆">逾時未回覆</option>
+                  <option value="單位因素無法接案">單位因素無法接案</option>
+                  <option value="派案後取消">派案後取消</option>
+                  <option value="違規停派">違規停派</option>
                 </select>
               </div>
 
@@ -750,6 +750,59 @@ export default function CaseForm({ activeCase, onClose }) {
                     className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                     placeholder={`請填寫 ${dispatchResult} 原因/備註...`}
                   />
+                </div>
+              )}
+
+              {dispatchResult && (
+                <div className="col-span-1 md:col-span-3 bg-purple-50/70 border border-purple-200/80 rounded-xl p-3 text-xs space-y-2 shadow-sm mt-1">
+                  <div className="font-bold text-purple-900 flex items-center gap-1.5">
+                    <span>💡 派案結果影響即時預覽</span>
+                    <span className="text-[11px] text-purple-600 font-normal">（依據「指派 B 單位」與「派案結果」自動判定）</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700">
+                    <div className="flex items-center gap-1.5 bg-white/80 px-3 py-2 rounded-lg border border-purple-100">
+                      <span className="font-semibold text-slate-500">BA 內轉率：</span>
+                      {serviceContent === 'BA' && ['新案_初評', '新案_出備', '自行發掘'].includes(dispatchType) ? (
+                        bUnitName === YUKANG_NAME && dispatchResult === '服務提供' ? (
+                          <span className="text-emerald-700 font-bold">✅ 計入分子 (+1 提升內轉率)</span>
+                        ) : (
+                          <span className="text-rose-600 font-bold">❌ 計入分母，不計分子 (+0)</span>
+                        )
+                      ) : (
+                        <span className="text-slate-500 font-medium">非 BA 新案範疇 (不影響內轉率)</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 bg-white/80 px-3 py-2 rounded-lg border border-purple-100">
+                      <span className="font-semibold text-slate-500">輪序次數：</span>
+                      {(() => {
+                        const isYukang = bUnitName === YUKANG_NAME;
+                        if (dispatchResult === '服務提供') {
+                          return <span className="text-purple-700 font-bold">次數 +1 (第一輪派案，順位後移)</span>;
+                        }
+                        if (dispatchResult === '服務提供(第二輪)' || dispatchResult === '出備已派案') {
+                          return isYukang ? (
+                            <span className="text-purple-700 font-bold">次數 +1 (悠康第二輪/出備案)</span>
+                          ) : (
+                            <span className="text-emerald-700 font-bold">次數 +0 (外單位被動救援保護，順位不扣)</span>
+                          );
+                        }
+                        if (['逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult)) {
+                          return <span className="text-amber-700 font-bold">次數 +1 (懲罰挑案條款，順位後移)</span>;
+                        }
+                        if (['外單位自開案', '案主指定(本單位)'].includes(dispatchResult)) {
+                          return <span className="text-blue-700 font-bold">次數 +0 (指定/自開案，不計輪排)</span>;
+                        }
+                        if (dispatchResult === '派案後取消') {
+                          return <span className="text-slate-600 font-bold">次數 +0 (取消派案)</span>;
+                        }
+                        if (dispatchResult === '違規停派') {
+                          return <span className="text-rose-700 font-bold">次數 +0 (自動設為停派中，違規次數 +1)</span>;
+                        }
+                        return <span className="text-slate-500">次數 +0</span>;
+                      })()}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
