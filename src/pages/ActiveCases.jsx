@@ -227,7 +227,7 @@ export default function ActiveCases() {
       <ConfirmDialog
         isOpen={confirmCloseId !== null}
         title="確認結案歸檔？"
-        message="結案歸檔後個案資料將轉為唯讀唯讀狀態，且不可還原，確定要結案嗎？"
+        message="結案歸檔後個案將移至「已結案存檔」，您與其他使用者仍可隨時進行編輯與資料補全。確定要結案嗎？"
         onConfirm={confirmClose}
         onCancel={() => setConfirmCloseId(null)}
       />

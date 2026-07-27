@@ -35,6 +35,16 @@ export default function CaseForm({ activeCase, onClose }) {
   const [isUnitCounseling, setIsUnitCounseling] = useState(activeCase?.isUnitCounseling || false);
   const [aUnitNotifyDate, setAUnitNotifyDate] = useState(activeCase?.aUnitNotifyDate || '');
   const [bUnitStartDate, setBUnitStartDate] = useState(activeCase?.bUnitStartDate || '');
+  const [bUnitReplyDate, setBUnitReplyDate] = useState(activeCase?.bUnitReplyDate || '');
+  const [firstServiceDate, setFirstServiceDate] = useState(activeCase?.firstServiceDate || '');
+  const [anomalyReasonType, setAnomalyReasonType] = useState(activeCase?.anomalyReasonType || '');
+  const [anomalyCategory, setAnomalyCategory] = useState(activeCase?.anomalyCategory || '');
+  const [anomalySummary, setAnomalySummary] = useState(activeCase?.anomalySummary || '');
+  const [referralTarget, setReferralTarget] = useState(activeCase?.referralTarget || '');
+  const [referralDate, setReferralDate] = useState(activeCase?.referralDate || '');
+  const [referralReplyDate, setReferralReplyDate] = useState(activeCase?.referralReplyDate || '');
+  const [hasReferralForm, setHasReferralForm] = useState(activeCase?.hasReferralForm ?? true);
+  const [isCMSRecorded, setIsCMSRecorded] = useState(activeCase?.isCMSRecorded ?? true);
 
   // 個管員打字搜尋狀態
   const initialStaffObj = staffList.find(s => s.name === (activeCase?.supervisor));
@@ -226,6 +236,16 @@ export default function CaseForm({ activeCase, onClose }) {
       isUnitCounseling,
       aUnitNotifyDate,
       bUnitStartDate,
+      bUnitReplyDate,
+      firstServiceDate,
+      anomalyReasonType,
+      anomalyCategory,
+      anomalySummary,
+      referralTarget,
+      referralDate,
+      referralReplyDate,
+      hasReferralForm,
+      isCMSRecorded,
       isClosed: activeCase ? activeCase.isClosed : false,
     };
 
@@ -817,6 +837,152 @@ export default function CaseForm({ activeCase, onClose }) {
                 />
                 是否需要單位輔導
               </label>
+            </div>
+          </div>
+
+          {/* 四、單位回覆時效與轉介/異常追蹤 (供五表數據匯出) */}
+          <div>
+            <div className="bg-[#e0f2fe] border-l-4 border-[#0284c7] px-4 py-1.5 rounded-r-lg mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-sky-900 m-0">
+                四、單位回覆時效與轉介/異常追蹤
+              </h3>
+              <span className="text-[11px] font-semibold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded">
+                報表 2~5 數據匯出必填
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  B單位回復日期 (單位回覆日)
+                </label>
+                <input
+                  type="date"
+                  value={bUnitReplyDate}
+                  onChange={(e) => setBUnitReplyDate(e.target.value)}
+                  onPaste={handleDatePaste(setBUnitReplyDate, 'date')}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  第一次服務日期 (實際進場日)
+                </label>
+                <input
+                  type="date"
+                  value={firstServiceDate}
+                  onChange={(e) => setFirstServiceDate(e.target.value)}
+                  onPaste={handleDatePaste(setFirstServiceDate, 'date')}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* 回覆天數試算與提示 */}
+              <div className="flex flex-col justify-center bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+                <span className="font-semibold text-slate-600">單位回覆時效計算：</span>
+                {(() => {
+                  if (!aUnitNotifyDate || !bUnitReplyDate) {
+                    return <span className="text-slate-400 mt-1">需填寫照會日與單位回復日</span>;
+                  }
+                  const notify = new Date(aUnitNotifyDate);
+                  const reply = new Date(bUnitReplyDate);
+                  const diffDays = Math.floor((reply - notify) / (1000 * 60 * 60 * 24));
+                  if (diffDays <= 3) {
+                    return <span className="text-emerald-600 font-bold mt-1">✅ {diffDays} 天 (符合 3 日內時效)</span>;
+                  }
+                  return <span className="text-rose-600 font-bold mt-1">⚠️ {diffDays} 天 (已超過 3 日，需填寫異常表)</span>;
+                })()}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  異常原因分類
+                </label>
+                <select
+                  value={anomalyReasonType}
+                  onChange={(e) => setAnomalyReasonType(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value="">-- 無異常 --</option>
+                  <option value="單位因素">單位因素</option>
+                  <option value="案家因素">案家因素</option>
+                  <option value="其他因素">其他因素</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  異常事項/品質類別
+                </label>
+                <input
+                  type="text"
+                  value={anomalyCategory}
+                  onChange={(e) => setAnomalyCategory(e.target.value)}
+                  placeholder="例: 超過天數/配合家屬時間..."
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  轉介資源項目
+                </label>
+                <select
+                  value={referralTarget}
+                  onChange={(e) => setReferralTarget(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value="">-- 無轉介 --</option>
+                  <option value="失智症社區服務據點">失智症社區服務據點</option>
+                  <option value="緊急救援">緊急救援</option>
+                  <option value="緊急安置">緊急安置</option>
+                  <option value="家照服務">家照服務</option>
+                  <option value="二手輔具/輔具資源中心">二手輔具/輔具資源中心</option>
+                  <option value="物資補助">物資補助</option>
+                  <option value="到宅修繕">到宅修繕</option>
+                  <option value="志工關懷訪視">志工關懷訪視</option>
+                  <option value="居家醫療/健保居家護理">居家醫療/健保居家護理</option>
+                  <option value="2-3級轉介巷弄長照站">2-3級轉介巷弄長照站</option>
+                  <option value="提供住宿式機構資訊">提供住宿式機構資訊</option>
+                </select>
+              </div>
+
+              {anomalyReasonType && (
+                <div className="col-span-1 md:col-span-3">
+                  <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                    異常內容摘要與後續追蹤情形
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={anomalySummary}
+                    onChange={(e) => setAnomalySummary(e.target.value)}
+                    placeholder="請輸入異常狀況摘要及後續處置情形..."
+                    className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                  />
+                </div>
+              )}
+
+              <div className="col-span-1 md:col-span-3 flex items-center gap-6 py-1">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasReferralForm}
+                    onChange={(e) => setHasReferralForm(e.target.checked)}
+                    className="rounded border-slate-350 text-sky-600 focus:ring-sky-500 w-4 h-4"
+                  />
+                  是否有轉介單
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isCMSRecorded}
+                    onChange={(e) => setIsCMSRecorded(e.target.checked)}
+                    className="rounded border-slate-350 text-sky-600 focus:ring-sky-500 w-4 h-4"
+                  />
+                  已完成 CMS 系統服務紀錄登記
+                </label>
+              </div>
             </div>
           </div>
 

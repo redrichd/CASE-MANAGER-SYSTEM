@@ -126,7 +126,29 @@
 
 ---
 
-## Phase 7: 收尾與跨功能考量
+## Phase 8: 使用者故事 5 - 單位回覆時效與五大報表數據收集 (優先級：P1)
+
+**目標**: 實作五大報表（回復表、轉介清冊、時效性回復表、異常回復表）匯出數據所需的細部欄位、單位回覆時效計算與轉介紀錄。
+
+- [x] T030 [US5] 於 src/components/CaseForm.jsx 新增「四、單位回覆時效與轉介/異常追蹤」UI 區塊
+- [x] T031 [US5] 實作 B單位回復日期 (`bUnitReplyDate`)、第一次服務日期 (`firstServiceDate`)、異常原因與轉介資源欄位
+- [x] T032 [US5] 實作單位回覆時效即時計算邏輯（計算照會日至回復日天數，>3 天時標示異常 warning）
+- [x] T033 [US5] 於 src/contexts/CaseContext.jsx 更新個案資料結構，支援完整五大報表欄位持久化
+
+---
+
+## Phase 9: 使用者故事 6 - 個案重複編輯與重開復原 (優先級：P2)
+
+**目標**: 允許一般使用者對已登載及已結案個案進行重複編輯與補全資料，並提供已結案個案重新恢復在案的功能。
+
+- [x] T034 [US6] 於 src/contexts/CaseContext.jsx 增加 `reopenCase` 方法，支援重開個案（`isClosed: false`）
+- [x] T035 [US6] 於 src/pages/ClosedCases.jsx 新增「編輯」與「重開」按鈕，允許使用者開表單補全資料
+- [x] T036 [US6] 於 src/pages/ActiveCases.jsx 更新結案 Prompt 說明，明確告知結案後仍可重複編輯與補全資料
+- [x] T037 [US6] 執行 Vitest 測試套件，確保全部 29 項測試皆 100% 通過
+
+---
+
+## Phase 10: 收尾與跨功能考量
 
 **目的**: 影響多個使用者故事的改進與優化
 

@@ -27,6 +27,16 @@ const initialCases = [
     bUnitStartDate: '2026-06-05',
     dispatchResult: '服務提供',
     isUnitCounseling: false,
+    bUnitReplyDate: '2026-06-02',
+    firstServiceDate: '2026-06-05',
+    anomalyReasonType: '',
+    anomalyCategory: '',
+    anomalySummary: '',
+    referralTarget: '',
+    referralDate: '',
+    referralReplyDate: '',
+    hasReferralForm: true,
+    isCMSRecorded: true,
     isClosed: false,
   },
   {
@@ -50,6 +60,16 @@ const initialCases = [
     bUnitStartDate: '2026-06-01',
     dispatchResult: '服務提供',
     isUnitCounseling: false,
+    bUnitReplyDate: '2026-05-27',
+    firstServiceDate: '2026-06-01',
+    anomalyReasonType: '',
+    anomalyCategory: '',
+    anomalySummary: '',
+    referralTarget: '',
+    referralDate: '',
+    referralReplyDate: '',
+    hasReferralForm: true,
+    isCMSRecorded: true,
     isClosed: true,
   },
   {
@@ -73,6 +93,16 @@ const initialCases = [
     bUnitStartDate: '',
     dispatchResult: '',
     isUnitCounseling: false,
+    bUnitReplyDate: '',
+    firstServiceDate: '',
+    anomalyReasonType: '',
+    anomalyCategory: '',
+    anomalySummary: '',
+    referralTarget: '',
+    referralDate: '',
+    referralReplyDate: '',
+    hasReferralForm: true,
+    isCMSRecorded: true,
     isClosed: false,
   }
 ];
@@ -160,6 +190,20 @@ export function CaseProvider({ children }) {
     }
   };
 
+  const reopenCase = async (id) => {
+    const updated = cases.map((c) => (c.id === id ? { ...c, isClosed: false } : c));
+    setCases(updated);
+    localStorage.setItem('local_cases', JSON.stringify(updated));
+
+    if (isFirebaseConfigured()) {
+      try {
+        await updateDoc(doc(db, 'cases', id), { isClosed: false });
+      } catch (error) {
+        console.error('Error reopening case in Firestore:', error);
+      }
+    }
+  };
+
   const deleteCase = async (id) => {
     const updated = cases.filter((c) => c.id !== id);
     setCases(updated);
@@ -175,7 +219,7 @@ export function CaseProvider({ children }) {
   };
 
   return (
-    <CaseContext.Provider value={{ cases, addCase, updateCase, closeCase, deleteCase }}>
+    <CaseContext.Provider value={{ cases, addCase, updateCase, closeCase, reopenCase, deleteCase }}>
       {children}
     </CaseContext.Provider>
   );
