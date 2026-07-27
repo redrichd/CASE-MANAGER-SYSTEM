@@ -706,47 +706,50 @@ export default function CaseForm({ activeCase, onClose }) {
                   />
                 </div>
 
-                {/* 轉介追蹤情形 */}
+                {/* 轉介追蹤情形 / 轉介追蹤回覆說明 */}
                 <div className="col-span-1 md:col-span-3">
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    轉介追蹤情形 (文字備註，無則空白)
+                    {referralType === '其他長照服務連結' ? '轉介追蹤回覆說明 (文字備註，無則空白)' : '轉介追蹤情形 (文字備註，無則空白)'}
                   </label>
                   <input
                     type="text"
                     value={referralFollowUp}
                     onChange={(e) => setReferralFollowUp(e.target.value)}
-                    placeholder="例: 案家考慮中 / 已完成銜接 / 文字備註，無則空白..."
+                    placeholder="例: 持續追蹤 / 案家考慮中 / 文字備註，無則空白..."
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                   />
                 </div>
 
-                {/* 當月是否已完成轉介單一併寄至承辦人信箱 */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    當月是否已完成轉介單一併寄至承辦人信箱
-                  </label>
-                  <input
-                    type="text"
-                    value={emailSentStatus}
-                    onChange={(e) => setEmailSentStatus(e.target.value)}
-                    placeholder="文字備註 (如: 已寄出/未寄出)，無則空白..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
+                {/* 僅在「轉介醫事C巷弄長照站連結」顯示信箱寄送與備註欄位 */}
+                {referralType === '轉介醫事C巷弄長照站連結' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        當月是否已完成轉介單一併寄至承辦人信箱
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSentStatus}
+                        onChange={(e) => setEmailSentStatus(e.target.value)}
+                        placeholder="文字備註 (如: 已寄出/未寄出)，無則空白..."
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
 
-                {/* 備註 */}
-                <div className="col-span-1 md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    備註
-                  </label>
-                  <input
-                    type="text"
-                    value={referralRemarks}
-                    onChange={(e) => setReferralRemarks(e.target.value)}
-                    placeholder="文字備註，無則空白..."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                  />
-                </div>
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        備註
+                      </label>
+                      <input
+                        type="text"
+                        value={referralRemarks}
+                        onChange={(e) => setReferralRemarks(e.target.value)}
+                        placeholder="文字備註，無則空白..."
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* 轉介單 / 服務紀錄登記 勾選項 */}
                 <div className="col-span-1 md:col-span-3 flex items-center gap-6 py-2 border-t border-purple-200 mt-2">
@@ -757,7 +760,9 @@ export default function CaseForm({ activeCase, onClose }) {
                       onChange={(e) => setHasReferralForm(e.target.checked)}
                       className="rounded border-slate-350 text-purple-600 focus:ring-purple-500 w-4 h-4"
                     />
-                    填寫轉介單 (勾選為「是」，未勾選為「否」)
+                    {referralType === '其他長照服務連結'
+                      ? '是否有轉介單 (勾選為「是」，未勾選為「否」)'
+                      : '填寫轉介單 (勾選為「是」，未勾選為「否」)'}
                   </label>
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
                     <input
@@ -766,7 +771,9 @@ export default function CaseForm({ activeCase, onClose }) {
                       onChange={(e) => setIsCMSRecorded(e.target.checked)}
                       className="rounded border-slate-350 text-purple-600 focus:ring-purple-500 w-4 h-4"
                     />
-                    是否已完成 CMS 系統服務紀錄登記 (勾選為「是」，未勾選為「否」)
+                    {referralType === '其他長照服務連結'
+                      ? '是否已完成服務紀錄登載 (勾選為「是」，未勾選為「否」)'
+                      : '是否已完成 CMS 系統服務紀錄登記 (勾選為「是」，未勾選為「否」)'}
                   </label>
                 </div>
               </div>

@@ -293,7 +293,7 @@ export default function ActiveCases() {
                           )}
                         </td>
 
-                        {/* 起日 (計畫最初送審日) */}
+                        {/* 起日 (計畫最初送審日 / 轉介日期) */}
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">
                           {hasMultiple ? (
                             <button
@@ -305,11 +305,18 @@ export default function ActiveCases() {
                               展開看更多
                             </button>
                           ) : (
-                            formatDateTime(primaryItem.approvalDate)
+                            primaryItem.recordCategory === 'referral' || (primaryItem.serviceContent && primaryItem.serviceContent.startsWith('轉介_')) ? (
+                              <div>
+                                <span className="block text-[10px] text-purple-600 font-bold mb-0.5">轉介日期</span>
+                                <span>{primaryItem.referralDate ? formatDateTime(primaryItem.referralDate) : '-'}</span>
+                              </div>
+                            ) : (
+                              formatDateTime(primaryItem.approvalDate)
+                            )
                           )}
                         </td>
 
-                        {/* 完成期限 */}
+                        {/* 完成期限 / 轉介回覆日期 */}
                         <td className="px-6 py-4 font-mono text-slate-600 font-medium text-xs">
                           {hasMultiple ? (
                             <button
@@ -321,7 +328,14 @@ export default function ActiveCases() {
                               展開看更多
                             </button>
                           ) : (
-                            formatDateTime(primaryItem.deadlineDate)
+                            primaryItem.recordCategory === 'referral' || (primaryItem.serviceContent && primaryItem.serviceContent.startsWith('轉介_')) ? (
+                              <div>
+                                <span className="block text-[10px] text-purple-600 font-bold mb-0.5">轉介回覆日期</span>
+                                <span>{primaryItem.referralReplyDate ? formatDateTime(primaryItem.referralReplyDate) : '-'}</span>
+                              </div>
+                            ) : (
+                              formatDateTime(primaryItem.deadlineDate)
+                            )
                           )}
                         </td>
 
@@ -356,44 +370,60 @@ export default function ActiveCases() {
                       </tr>
 
                       {/* 若為多服務碼別且處於展開狀態，渲染各碼別子項目列表 */}
-                      {hasMultiple && isExpanded && items.map((subItem, idx) => (
-                        <tr key={`${subItem.id}_${subItem.serviceContent}_${idx}`} className="bg-purple-50/40 hover:bg-purple-50/80 transition border-l-4 border-purple-500">
-                          <td className="px-3 py-2.5 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(subItem)}
-                              className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition cursor-pointer"
-                              title={`編輯 ${subItem.serviceContent} 碼別資料`}
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                          <td className="px-3 py-2.5 text-center text-xs font-bold text-purple-600 font-mono">
-                            └─
-                          </td>
-                          <td className="px-6 py-2.5 text-center">
-                            <span className="inline-block px-2 py-0.5 bg-blue-50/80 text-[#1e3a8a] border border-blue-100 rounded text-[11px] font-bold">
-                              {subItem.area || '未設區'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-xs font-semibold text-slate-700">{subItem.id}</span>
-                              <span className="inline-block px-2 py-0.5 bg-purple-600 text-white rounded font-mono font-bold text-xs">
-                                {subItem.serviceContent} 碼
+                      {hasMultiple && isExpanded && items.map((subItem, idx) => {
+                        const isSubReferral = subItem.recordCategory === 'referral' || (subItem.serviceContent && subItem.serviceContent.startsWith('轉介_'));
+                        return (
+                          <tr key={`${subItem.id}_${subItem.serviceContent}_${idx}`} className="bg-purple-50/40 hover:bg-purple-50/80 transition border-l-4 border-purple-500">
+                            <td className="px-3 py-2.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(subItem)}
+                                className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition cursor-pointer"
+                                title={`編輯 ${subItem.serviceContent} 碼別資料`}
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                            <td className="px-3 py-2.5 text-center text-xs font-bold text-purple-600 font-mono">
+                              └─
+                            </td>
+                            <td className="px-6 py-2.5 text-center">
+                              <span className="inline-block px-2 py-0.5 bg-blue-50/80 text-[#1e3a8a] border border-blue-100 rounded text-[11px] font-bold">
+                                {subItem.area || '未設區'}
                               </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-2.5 text-xs text-slate-700">
-                            <div className="font-bold text-purple-950">{subItem.name}</div>
-                            <div className="text-[10px] text-slate-500 truncate max-w-[160px]">{subItem.bUnitName || '未指定單位'} - {subItem.dispatchResult || '未回覆'}</div>
-                          </td>
-                          <td className="px-6 py-2.5 font-mono text-xs text-slate-600">
-                            {formatDateTime(subItem.approvalDate)}
-                          </td>
-                          <td className="px-6 py-2.5 font-mono text-xs text-slate-600">
-                            {formatDateTime(subItem.deadlineDate)}
-                          </td>
+                            </td>
+                            <td className="px-6 py-2.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs font-semibold text-slate-700">{subItem.id}</span>
+                                <span className="inline-block px-2 py-0.5 bg-purple-600 text-white rounded font-mono font-bold text-xs">
+                                  {subItem.serviceContent} 碼
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-2.5 text-xs text-slate-700">
+                              <div className="font-bold text-purple-950">{subItem.name}</div>
+                              <div className="text-[10px] text-slate-500 truncate max-w-[160px]">{subItem.bUnitName || '未指定單位'} - {subItem.dispatchResult || '未回覆'}</div>
+                            </td>
+                            <td className="px-6 py-2.5 font-mono text-xs text-slate-600">
+                              {isSubReferral ? (
+                                <div>
+                                  <span className="block text-[10px] text-purple-600 font-bold mb-0.5">轉介日期</span>
+                                  <span>{subItem.referralDate ? formatDateTime(subItem.referralDate) : '-'}</span>
+                                </div>
+                              ) : (
+                                formatDateTime(subItem.approvalDate)
+                              )}
+                            </td>
+                            <td className="px-6 py-2.5 font-mono text-xs text-slate-600">
+                              {isSubReferral ? (
+                                <div>
+                                  <span className="block text-[10px] text-purple-600 font-bold mb-0.5">轉介回覆日期</span>
+                                  <span>{subItem.referralReplyDate ? formatDateTime(subItem.referralReplyDate) : '-'}</span>
+                                </div>
+                              ) : (
+                                formatDateTime(subItem.deadlineDate)
+                              )}
+                            </td>
                           <td className="px-6 py-2.5 text-center">
                             <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold ${
                               subItem.status === '超時效' 
@@ -417,8 +447,9 @@ export default function ActiveCases() {
                             </button>
                           </td>
                         </tr>
-                      ))}
-                    </React.Fragment>
+                      );
+                    })}
+                  </React.Fragment>
                   );
                 })
               )}
