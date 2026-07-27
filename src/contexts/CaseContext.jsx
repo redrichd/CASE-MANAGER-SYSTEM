@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
 const CaseContext = createContext();
 
@@ -192,9 +192,11 @@ export function CaseProvider({ children }) {
 
         if (querySnapshot.empty && !isInitialized) {
           const seeded = sanitizeCases(initialCases);
+          const batch = writeBatch(db);
           for (const c of seeded) {
-            await setDoc(doc(db, 'cases', c._recordId || c.id), c);
+            batch.set(doc(db, 'cases', c._recordId || c.id), c);
           }
+          await batch.commit();
           localStorage.setItem('cases_db_initialized', 'true');
           setCases(seeded);
           localStorage.setItem('local_cases', JSON.stringify(seeded));

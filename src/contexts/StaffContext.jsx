@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, writeBatch, query, where } from 'firebase/firestore';
 
 const StaffContext = createContext();
 
@@ -60,14 +60,20 @@ export function StaffProvider({ children }) {
         });
 
         // 自動合併 initialStaff，如果資料庫中沒有該工號或名字，就寫入（保證不重複且補齊名單）
+        const batch = writeBatch(db);
+        let hasNewStaff = false;
         for (const s of initialStaff) {
           const exists = fetchedStaff.some(
             (fs) => fs.empId === s.empId || fs.name === s.name
           );
           if (!exists) {
-            await setDoc(doc(db, 'staff', s.empId), s);
+            batch.set(doc(db, 'staff', s.empId), s);
             fetchedStaff.push(s);
+            hasNewStaff = true;
           }
+        }
+        if (hasNewStaff) {
+          await batch.commit();
         }
 
         fetchedStaff.sort((a, b) => a.empId.localeCompare(b.empId));
@@ -161,13 +167,15 @@ export function StaffProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        const querySnapshot = await getDocs(collection(db, 'staff'));
-        querySnapshot.forEach(async (d) => {
-          const data = d.data();
-          if (data.area === areaName) {
-            await updateDoc(doc(db, 'staff', data.empId), { area: '' });
-          }
-        });
+        const q = query(collection(db, 'staff'), where('area', '==', areaName));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const batch = writeBatch(db);
+          querySnapshot.forEach((d) => {
+            batch.update(d.ref, { area: '' });
+          });
+          await batch.commit();
+        }
       } catch (error) {
         console.error('Error updating staff documents in Firestore after area deletion:', error);
       }

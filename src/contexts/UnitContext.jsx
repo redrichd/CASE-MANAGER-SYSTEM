@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 
 const UnitContext = createContext();
 
@@ -29,26 +29,34 @@ export function UnitProvider({ children }) {
         const isInitialized = localStorage.getItem('units_db_initialized') === 'true';
 
         if (querySnapshot.empty && !isInitialized) {
-          // Seed the database
+          // Seed the database with writeBatch
+          const batch = writeBatch(db);
           for (const u of initialUnits) {
-            await setDoc(doc(db, 'units', u.id), u);
+            batch.set(doc(db, 'units', u.id), u);
           }
+          await batch.commit();
           localStorage.setItem('units_db_initialized', 'true');
           setUnits(initialUnits);
           localStorage.setItem('local_units', JSON.stringify(initialUnits));
         } else if (!querySnapshot.empty) {
           const fetchedUnits = [];
+          const batch = writeBatch(db);
+          let hasMigration = false;
           for (const docSnapshot of querySnapshot.docs) {
             const data = docSnapshot.data();
             // 自動將資料庫中舊的 D 碼搬遷修正為 DA 碼，防止歷史數據殘留
             if (data.services && data.services.includes('D')) {
               const updatedServices = data.services.map(s => s === 'D' ? 'DA' : s);
               const updatedUnit = { ...data, services: updatedServices };
-              await setDoc(doc(db, 'units', data.id), updatedUnit);
+              batch.set(doc(db, 'units', data.id), updatedUnit);
+              hasMigration = true;
               fetchedUnits.push(updatedUnit);
             } else {
               fetchedUnits.push(data);
             }
+          }
+          if (hasMigration) {
+            await batch.commit();
           }
           // Sort by id to ensure a deterministic list order
           fetchedUnits.sort((a, b) => a.id.localeCompare(b.id));
