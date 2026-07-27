@@ -122,7 +122,7 @@
 - **FR-008**: 系統 **必須 (MUST)** 於儲存時攔截近期重複派案行為（已有成功紀錄之單位），並彈出警告視窗要求二次確認。
 - **FR-009**: 系統 **必須 (MUST)** 整合 Google Gemini API，提供逾時說明之白話文潤飾功能，轉換為符合公文規範之文字（限制 50-100 字內）。
 - **FR-010**: 系統 **必須 (MUST)** 提供一鍵生成彙整之派案交接短訊功能（包含姓名、性別、案號、服務內容等），並提供複製功能。
-- **FR-011**: 系統 **必須 (MUST)** 提供 B單位回復日期 (`bUnitReplyDate`)、第一次服務日期 (`firstServiceDate`)、異常原因分類 (`anomalyReasonType`)、異常事項類別 (`anomalyCategory`)、異常內容摘要 (`anomalySummary`) 欄位，並自動計算單位回覆時效（以 3 日為常規時效基準）。
+- **FR-011**: 系統 **必須 (MUST)** 提供服務單位回復日期 (`bUnitReplyDate`)、首次服務日期 (`firstServiceDate`)、異常原因分類 (`anomalyReasonType`)、異常事項類別 (`anomalyCategory`)、異常內容摘要 (`anomalySummary`) 欄位，並自動計算單位回覆時效（以 3 日為常規時效基準）。
 - **FR-012**: 系統 **必須 (MUST)** 提供轉介資源項目 (`referralTarget`)、是否有轉介單 (`hasReferralForm`) 與 CMS 系統紀錄登記 (`isCMSRecorded`) 等五表數據匯出所需欄位。
 - **FR-013**: 系統 **必須 (MUST)** 允許使用者對已結案個案進行重複編輯與補全資料，並提供重開個案 (`reopenCase`) 功能將歸檔案件切回活躍狀態。
 

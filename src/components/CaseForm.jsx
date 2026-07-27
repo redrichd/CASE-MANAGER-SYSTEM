@@ -743,19 +743,6 @@ export default function CaseForm({ activeCase, onClose }) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  B單位預計首次進場日
-                </label>
-                <input
-                  type="date"
-                  value={bUnitStartDate}
-                  onChange={(e) => setBUnitStartDate(e.target.value)}
-                  onPaste={handleDatePaste(setBUnitStartDate, 'date')}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-              </div>
-
               {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) && (
                 <div className="col-span-1 md:col-span-3">
                   <label htmlFor="secondRoundReason" className="block text-xs font-bold text-slate-650 mb-1.5">
@@ -854,7 +841,7 @@ export default function CaseForm({ activeCase, onClose }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  B單位回復日期 (單位回覆日)
+                  服務單位回復日期 (單位回覆日)
                 </label>
                 <input
                   type="date"
@@ -867,7 +854,7 @@ export default function CaseForm({ activeCase, onClose }) {
 
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  第一次服務日期 (實際進場日)
+                  首次服務日期 (實際進場日)
                 </label>
                 <input
                   type="date"

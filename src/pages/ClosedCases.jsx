@@ -257,11 +257,11 @@ export default function ClosedCases() {
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.dispatchResult || '無'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 block">B單位回復日期：</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 block">服務單位回復日期：</span>
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.bUnitReplyDate || '未填寫'}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 block">第一次服務日期：</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 block">首次服務日期：</span>
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.firstServiceDate || '未填寫'}</span>
                 </div>
                 {selectedCase.secondRoundReason && (
