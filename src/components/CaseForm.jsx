@@ -37,6 +37,11 @@ export default function CaseForm({ activeCase, onClose }) {
   const [bUnitStartDate, setBUnitStartDate] = useState(activeCase?.bUnitStartDate || '');
   const [bUnitReplyDate, setBUnitReplyDate] = useState(activeCase?.bUnitReplyDate || '');
   const [firstServiceDate, setFirstServiceDate] = useState(activeCase?.firstServiceDate || '');
+  const [overdueDays, setOverdueDays] = useState(
+    activeCase?.overdueDays !== undefined && activeCase?.overdueDays !== null
+      ? activeCase.overdueDays
+      : ''
+  );
   const [anomalyReasonType, setAnomalyReasonType] = useState(activeCase?.anomalyReasonType || '');
   const [anomalyDate, setAnomalyDate] = useState(activeCase?.anomalyDate || '');
   const [anomalyCategory, setAnomalyCategory] = useState(activeCase?.anomalyCategory || '');
@@ -195,6 +200,16 @@ export default function CaseForm({ activeCase, onClose }) {
       return;
     }
 
+    // 防呆：A單位照會服務單位日不可比照顧計劃審核通過日還要前面
+    if (recordCategory === 'dispatch' && aUnitNotifyDate && approvalDate) {
+      const notifyTime = new Date(aUnitNotifyDate).getTime();
+      const approvalTime = new Date(approvalDate).getTime();
+      if (!isNaN(notifyTime) && !isNaN(approvalTime) && notifyTime < approvalTime) {
+        alert('「A單位照會服務單位日」不可早於「照顧計畫擬定完成日 (審核通過日)」！');
+        return;
+      }
+    }
+
     // 防呆：派案結果為「服務提供(第二輪)」、「逾時未回覆」、「無人力」、「單位因素無法接案」時，必須填寫說明原因
     const reasonRequiredResults = ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'];
     if (reasonRequiredResults.includes(dispatchResult) && !secondRoundReason.trim()) {
@@ -276,6 +291,7 @@ export default function CaseForm({ activeCase, onClose }) {
             bUnitStartDate,
             bUnitReplyDate,
             firstServiceDate,
+            overdueDays,
             anomalyReasonType,
             anomalyDate,
             anomalyCategory,
@@ -1016,8 +1032,17 @@ export default function CaseForm({ activeCase, onClose }) {
                   value={aUnitNotifyDate}
                   onChange={(e) => setAUnitNotifyDate(e.target.value)}
                   onPaste={handleDatePaste(setAUnitNotifyDate, 'date')}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                    aUnitNotifyDate && approvalDate && new Date(aUnitNotifyDate).getTime() < new Date(approvalDate).getTime()
+                      ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
+                      : 'border-slate-250 focus:ring-purple-500'
+                  }`}
                 />
+                {aUnitNotifyDate && approvalDate && new Date(aUnitNotifyDate).getTime() < new Date(approvalDate).getTime() && (
+                  <span className="text-[11px] font-bold text-rose-600 mt-1 block">
+                    ⚠️ 照會日不可早於審核通過日 ({approvalDate})
+                  </span>
+                )}
               </div>
 
               {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) && (
@@ -1176,27 +1201,19 @@ export default function CaseForm({ activeCase, onClose }) {
                 />
               </div>
 
-              {/* 超過天數 (自動計算：單位回覆日與首次服務日期的間隔天數) */}
-              <div className="flex flex-col justify-center bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
-                <span className="font-semibold text-slate-600">超過天數試算 (回覆日~進場日)：</span>
-                {(() => {
-                  if (!bUnitReplyDate || !firstServiceDate) {
-                    return <span className="text-slate-400 mt-1">需填寫單位回覆日與首次服務日</span>;
-                  }
-                  const reply = new Date(bUnitReplyDate);
-                  const service = new Date(firstServiceDate);
-                  if (isNaN(reply.getTime()) || isNaN(service.getTime())) {
-                    return <span className="text-slate-400 mt-1">日期格式無效</span>;
-                  }
-                  const diffTime = service.getTime() - reply.getTime();
-                  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                  const displayDays = diffDays >= 0 ? diffDays : 0;
-                  return (
-                    <span className={`font-bold mt-1 text-sm ${displayDays > 3 ? 'text-rose-600' : 'text-purple-700'}`}>
-                      {displayDays > 0 ? `超過 ${displayDays} 天` : `0 天 (即時/當日進場)`}
-                    </span>
-                  );
-                })()}
+              {/* 超過天數 (手動輸入天數) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  超過天數 (請輸入天數)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={overdueDays}
+                  onChange={(e) => setOverdueDays(e.target.value)}
+                  placeholder="例: 3"
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-bold text-slate-800"
+                />
               </div>
 
               {/* 異常事項 (品質類別) */}
