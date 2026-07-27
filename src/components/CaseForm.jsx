@@ -317,7 +317,7 @@ export default function CaseForm({ activeCase, onClose }) {
     }
 
     if (activeCase) {
-      updateCase({ id: activeCase.id, serviceContent: activeCase.serviceContent }, savedData);
+      updateCase(activeCase, savedData);
     } else {
       addCase(savedData);
     }

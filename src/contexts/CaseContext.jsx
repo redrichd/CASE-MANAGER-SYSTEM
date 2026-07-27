@@ -145,19 +145,41 @@ const initialCases = [
   }
 ];
 
+// 淨化並為每筆個案資料賦予獨立的 _recordId，剔除過往產生的完全重複垃圾資料
+const sanitizeCases = (list) => {
+  if (!Array.isArray(list)) return [];
+  const seenKeys = new Map();
+  const cleanList = [];
+
+  list.forEach((item, index) => {
+    if (!item || !item.id) return;
+    // 判斷完全相同紀錄的特徵 key
+    const sigKey = `${item.id}_${item.serviceContent || ''}_${item.bUnitName || ''}_${item.approvalDate || ''}_${item.referralDate || ''}_${item.date || ''}_${item.isClosed ? 'closed' : 'active'}`;
+    if (!seenKeys.has(sigKey)) {
+      seenKeys.set(sigKey, true);
+      const _recordId = item._recordId || `${item.id}_${item.serviceContent || 'default'}_${index}_${Math.random().toString(36).substr(2, 5)}`;
+      cleanList.push({ ...item, _recordId });
+    }
+  });
+
+  return cleanList;
+};
+
 export function CaseProvider({ children }) {
   const [cases, setCases] = useState(() => {
     const local = localStorage.getItem('local_cases');
-    if (!local) return initialCases;
+    if (!local) return sanitizeCases(initialCases);
     const parsed = JSON.parse(local);
-    // 確保展示資料包含 115X15023 多碼別紀錄
     const hasTargetCase = parsed.some(c => c.id === '115X15023');
     if (!hasTargetCase) {
       const merged = [...initialCases, ...parsed.filter(c => c.id !== '115X15023')];
-      localStorage.setItem('local_cases', JSON.stringify(merged));
-      return merged;
+      const cleaned = sanitizeCases(merged);
+      localStorage.setItem('local_cases', JSON.stringify(cleaned));
+      return cleaned;
     }
-    return parsed;
+    const cleaned = sanitizeCases(parsed);
+    localStorage.setItem('local_cases', JSON.stringify(cleaned));
+    return cleaned;
   });
 
   useEffect(() => {
@@ -169,22 +191,22 @@ export function CaseProvider({ children }) {
         const isInitialized = localStorage.getItem('cases_db_initialized') === 'true';
 
         if (querySnapshot.empty && !isInitialized) {
-          // Seed the database
-          for (const c of initialCases) {
-            await setDoc(doc(db, 'cases', c.id), c);
+          const seeded = sanitizeCases(initialCases);
+          for (const c of seeded) {
+            await setDoc(doc(db, 'cases', c._recordId || c.id), c);
           }
           localStorage.setItem('cases_db_initialized', 'true');
-          setCases(initialCases);
-          localStorage.setItem('local_cases', JSON.stringify(initialCases));
+          setCases(seeded);
+          localStorage.setItem('local_cases', JSON.stringify(seeded));
         } else if (!querySnapshot.empty) {
           const fetchedCases = [];
           querySnapshot.forEach((doc) => {
             fetchedCases.push(doc.data());
           });
-          // Sort by id or date to ensure a deterministic list order
-          fetchedCases.sort((a, b) => a.id.localeCompare(b.id));
-          setCases(fetchedCases);
-          localStorage.setItem('local_cases', JSON.stringify(fetchedCases));
+          const cleaned = sanitizeCases(fetchedCases);
+          cleaned.sort((a, b) => a.id.localeCompare(b.id));
+          setCases(cleaned);
+          localStorage.setItem('local_cases', JSON.stringify(cleaned));
           localStorage.setItem('cases_db_initialized', 'true');
         }
       } catch (error) {
@@ -195,25 +217,33 @@ export function CaseProvider({ children }) {
     fetchCases();
   }, []);
 
+  // 獨立精準比對個案紀錄 (優先使用 _recordId 避免影響同案號其他碼別紀錄)
   const isRecordMatch = (item, target) => {
-    if (!target) return false;
+    if (!item || !target) return false;
     if (typeof target === 'object') {
+      if (target._recordId && item._recordId) {
+        return item._recordId === target._recordId;
+      }
       if (target.id && target.serviceContent) {
         return item.id === target.id && item.serviceContent === target.serviceContent;
       }
       if (target.id) return item.id === target.id;
     }
-    return item.id === target;
+    return item._recordId === target || item.id === target;
   };
 
   const addCase = async (newCase) => {
-    const updated = [...cases, newCase];
+    const caseToAdd = {
+      ...newCase,
+      _recordId: newCase._recordId || `${newCase.id}_${newCase.serviceContent || 'default'}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+    };
+    const updated = [...cases, caseToAdd];
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await setDoc(doc(db, 'cases', newCase.id), newCase);
+        await setDoc(doc(db, 'cases', caseToAdd._recordId), caseToAdd);
       } catch (error) {
         console.error('Error adding case to Firestore:', error);
       }
@@ -221,13 +251,23 @@ export function CaseProvider({ children }) {
   };
 
   const updateCase = async (target, updatedFields) => {
-    const updated = cases.map((c) => (isRecordMatch(c, target) ? { ...c, ...updatedFields } : c));
+    const updated = cases.map((c) => {
+      if (isRecordMatch(c, target)) {
+        return {
+          ...c,
+          ...updatedFields,
+          // 保留原紀錄的 _recordId，避免變更服務碼別時失去獨立識別碼
+          _recordId: c._recordId || updatedFields._recordId || (typeof target === 'object' ? target._recordId : undefined) || `${c.id}_${updatedFields.serviceContent || c.serviceContent}_${Date.now()}`
+        };
+      }
+      return c;
+    });
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        const docId = typeof target === 'object' ? target.id : target;
+        const docId = typeof target === 'object' ? (target._recordId || target.id) : target;
         await updateDoc(doc(db, 'cases', docId), updatedFields);
       } catch (error) {
         console.error('Error updating case in Firestore:', error);
@@ -242,7 +282,7 @@ export function CaseProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        const docId = typeof target === 'object' ? target.id : target;
+        const docId = typeof target === 'object' ? (target._recordId || target.id) : target;
         await updateDoc(doc(db, 'cases', docId), { isClosed: true });
       } catch (error) {
         console.error('Error closing case in Firestore:', error);
@@ -257,7 +297,7 @@ export function CaseProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        const docId = typeof target === 'object' ? target.id : target;
+        const docId = typeof target === 'object' ? (target._recordId || target.id) : target;
         await updateDoc(doc(db, 'cases', docId), { isClosed: false });
       } catch (error) {
         console.error('Error reopening case in Firestore:', error);
@@ -272,7 +312,7 @@ export function CaseProvider({ children }) {
 
     if (isFirebaseConfigured()) {
       try {
-        const docId = typeof target === 'object' ? target.id : target;
+        const docId = typeof target === 'object' ? (target._recordId || target.id) : target;
         await deleteDoc(doc(db, 'cases', docId));
       } catch (error) {
         console.error('Error deleting case from Firestore:', error);

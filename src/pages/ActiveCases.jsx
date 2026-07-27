@@ -269,9 +269,9 @@ export default function ActiveCases() {
                           </div>
                           {/* 呈現該案號下所有服務碼別 badge */}
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {items.map((item) => (
+                            {items.map((item, idx) => (
                               <span
-                                key={item.serviceContent}
+                                key={item._recordId || `${item.id}_${item.serviceContent}_${idx}`}
                                 className="inline-block px-1.5 py-0.2 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-bold"
                               >
                                 {item.serviceContent}
