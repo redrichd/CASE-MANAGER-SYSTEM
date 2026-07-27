@@ -264,24 +264,28 @@ export default function ClosedCases() {
                   <span className="text-xs text-slate-400 dark:text-slate-500 block">首次服務日期：</span>
                   <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.firstServiceDate || '未填寫'}</span>
                 </div>
-                {selectedCase.secondRoundReason && (
-                  <div className="bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-3 mt-2">
-                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold block mb-1">
-                      {selectedCase.dispatchResult ? `${selectedCase.dispatchResult} 原因/備註：` : '派案原因/備註：'}
-                    </span>
-                    <p className="text-xs text-slate-650 dark:text-slate-400 leading-relaxed">
-                      {selectedCase.secondRoundReason}
-                    </p>
+                {selectedCase.anomalyReasonType && (
+                  <div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 block">原因分類：</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.anomalyReasonType}</span>
                   </div>
                 )}
-                {selectedCase.delayReason && (
-                  <div className="bg-red-50/50 dark:bg-red-950/10 border border-red-100 dark:border-red-900/30 rounded-2xl p-3 mt-2">
-                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold block mb-1">
-                      時效逾時說明：
-                    </span>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      {selectedCase.delayReason}
-                    </p>
+                {selectedCase.anomalyDate && (
+                  <div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 block">異常發生日：</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.anomalyDate}</span>
+                  </div>
+                )}
+                {selectedCase.followUpStatus && (
+                  <div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 block">後續追蹤/辦理情形：</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.followUpStatus}</span>
+                  </div>
+                )}
+                {selectedCase.remarks && (
+                  <div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 block">備註：</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{selectedCase.remarks}</span>
                   </div>
                 )}
               </div>

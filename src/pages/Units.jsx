@@ -23,6 +23,7 @@ const SERVICE_FILTERS = [
   { key: 'GA06', label: '小多機能 (GA06)' },
   { key: 'GA07', label: '巷弄長照 (GA07)' },
   { key: 'SC09', label: '短照 (SC09)' },
+  { key: '轉介', label: '轉介' },
 ];
 
 export default function Units() {
@@ -74,6 +75,7 @@ export default function Units() {
       if (selectedServiceFilter === 'GA06') return code === 'GA06';
       if (selectedServiceFilter === 'GA07') return code === 'GA07';
       if (selectedServiceFilter === 'SC09') return code === 'SC09';
+      if (selectedServiceFilter === '轉介') return code === '轉介' || code?.startsWith('轉介_') || c.recordCategory === 'referral';
       return false;
     });
   };
@@ -87,6 +89,9 @@ export default function Units() {
     if (selectedServiceFilter === 'ALL') return true;
     if (selectedServiceFilter === 'GA03_04') {
       return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
+    }
+    if (selectedServiceFilter === '轉介') {
+      return u.services && (u.services.includes('轉介') || u.services.includes('REFERRAL'));
     }
     return u.services && u.services.includes(selectedServiceFilter);
   });

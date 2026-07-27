@@ -38,13 +38,30 @@ export default function CaseForm({ activeCase, onClose }) {
   const [bUnitReplyDate, setBUnitReplyDate] = useState(activeCase?.bUnitReplyDate || '');
   const [firstServiceDate, setFirstServiceDate] = useState(activeCase?.firstServiceDate || '');
   const [anomalyReasonType, setAnomalyReasonType] = useState(activeCase?.anomalyReasonType || '');
+  const [anomalyDate, setAnomalyDate] = useState(activeCase?.anomalyDate || '');
   const [anomalyCategory, setAnomalyCategory] = useState(activeCase?.anomalyCategory || '');
   const [anomalySummary, setAnomalySummary] = useState(activeCase?.anomalySummary || '');
+  const [followUpStatus, setFollowUpStatus] = useState(activeCase?.followUpStatus || '');
+  const [otherNote, setOtherNote] = useState(activeCase?.otherNote || '');
+  const [remarks, setRemarks] = useState(activeCase?.remarks || '');
   const [referralTarget, setReferralTarget] = useState(activeCase?.referralTarget || '');
   const [referralDate, setReferralDate] = useState(activeCase?.referralDate || '');
   const [referralReplyDate, setReferralReplyDate] = useState(activeCase?.referralReplyDate || '');
   const [hasReferralForm, setHasReferralForm] = useState(activeCase?.hasReferralForm ?? true);
   const [isCMSRecorded, setIsCMSRecorded] = useState(activeCase?.isCMSRecorded ?? true);
+  // 紀錄性質切換狀態：'dispatch' (一般派案紀錄) vs 'referral' (轉介服務紀錄)
+  const initialCategory = activeCase?.recordCategory || (activeCase?.referralType ? 'referral' : 'dispatch');
+  const [recordCategory, setRecordCategory] = useState(initialCategory);
+
+  // 轉介服務專屬欄位狀態
+  const [referralType, setReferralType] = useState(activeCase?.referralType || '其他長照服務連結'); // '其他長照服務連結' | '轉介醫事C巷弄長照站連結'
+  const [referralUnitName, setReferralUnitName] = useState(activeCase?.referralUnitName || '');
+  const [referralReason, setReferralReason] = useState(activeCase?.referralReason || '');
+  const [referralFollowUp, setReferralFollowUp] = useState(activeCase?.referralFollowUp || '');
+  const [emailSentStatus, setEmailSentStatus] = useState(activeCase?.emailSentStatus || '');
+  const [referralRemarks, setReferralRemarks] = useState(activeCase?.referralRemarks || '');
+  const [cStationInfo, setCStationInfo] = useState(activeCase?.cStationInfo || '');
+  const [reEvalResult, setReEvalResult] = useState(activeCase?.reEvalResult || '');
 
   // 個管員打字搜尋狀態
   const initialStaffObj = staffList.find(s => s.name === (activeCase?.supervisor));
@@ -222,30 +239,51 @@ export default function CaseForm({ activeCase, onClose }) {
       supervisor,
       area,
       date: activeCase ? activeCase.date : new Date().toLocaleDateString('zh-TW'),
-      superApprovalDate,
-      approvalDate,
-      deadlineDate,
-      submitDate,
-      status: isOvertime ? '超時效' : '時效內',
-      delayReason: isOvertime ? delayReason : '',
-      dispatchType,
-      serviceContent,
-      bUnitName,
-      dispatchResult,
-      secondRoundReason: ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) ? secondRoundReason : '',
-      isUnitCounseling,
-      aUnitNotifyDate,
-      bUnitStartDate,
-      bUnitReplyDate,
-      firstServiceDate,
-      anomalyReasonType,
-      anomalyCategory,
-      anomalySummary,
-      referralTarget,
-      referralDate,
-      referralReplyDate,
-      hasReferralForm,
-      isCMSRecorded,
+      recordCategory, // 'dispatch' | 'referral'
+      ...(recordCategory === 'referral'
+        ? {
+            serviceContent: referralType === '其他長照服務連結' ? '轉介_其他長照' : '轉介_醫事C',
+            referralType,
+            referralDate,
+            referralReplyDate,
+            referralUnitName,
+            referralReason,
+            referralFollowUp,
+            referralTarget,
+            emailSentStatus,
+            referralRemarks,
+            cStationInfo,
+            reEvalResult,
+            hasReferralForm,
+            isCMSRecorded,
+            bUnitName: referralUnitName,
+            status: '已轉介',
+          }
+        : {
+            superApprovalDate,
+            approvalDate,
+            deadlineDate,
+            submitDate,
+            status: isOvertime ? '超時效' : '時效內',
+            delayReason: isOvertime ? delayReason : '',
+            dispatchType,
+            serviceContent,
+            bUnitName,
+            dispatchResult,
+            secondRoundReason: ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) ? secondRoundReason : '',
+            isUnitCounseling,
+            aUnitNotifyDate,
+            bUnitStartDate,
+            bUnitReplyDate,
+            firstServiceDate,
+            anomalyReasonType,
+            anomalyDate,
+            anomalyCategory,
+            anomalySummary,
+            followUpStatus,
+            otherNote,
+            remarks,
+          }),
       isClosed: activeCase ? activeCase.isClosed : false,
     };
 
@@ -263,7 +301,7 @@ export default function CaseForm({ activeCase, onClose }) {
     }
 
     if (activeCase) {
-      updateCase(activeCase.id, savedData);
+      updateCase({ id: activeCase.id, serviceContent: activeCase.serviceContent }, savedData);
     } else {
       addCase(savedData);
     }
@@ -316,6 +354,42 @@ export default function CaseForm({ activeCase, onClose }) {
         {/* 表單內容 */}
         <form onSubmit={handleSave} className="flex-1 p-6 space-y-6 overflow-y-auto max-h-[75vh]">
           
+          {/* 紀錄性質切換按鈕 (派案 vs 轉介) */}
+          <div className="bg-slate-100 p-2 rounded-xl border border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 ml-2">紀錄登載類型：</span>
+              <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setRecordCategory('dispatch')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition cursor-pointer ${
+                    recordCategory === 'dispatch'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  📋 一般派案紀錄 (一~四大項)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRecordCategory('referral')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition cursor-pointer ${
+                    recordCategory === 'referral'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  🔗 轉介服務紀錄 (連結/清冊專用)
+                </button>
+              </div>
+            </div>
+            {recordCategory === 'referral' && (
+              <span className="text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-lg">
+                已啟動轉介登載模式：原本派案一、二、三、四大項免填
+              </span>
+            )}
+          </div>
+
           {/* 一、個案基本資料 */}
           <div>
             <div className="bg-[#e8f0fe] border-l-4 border-[#2563eb] px-4 py-1.5 rounded-r-lg mb-4">
@@ -434,27 +508,22 @@ export default function CaseForm({ activeCase, onClose }) {
                                 setArea(s.area || '');
                                 setIsSupervisorDropdownOpen(false);
                               }}
-                              className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-700 font-medium flex items-center justify-between"
+                              className="px-3 py-2 hover:bg-blue-50 text-sm cursor-pointer border-b border-slate-100"
                             >
-                              <span>{s.name} ({s.empId})</span>
-                              {s.area && (
-                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">
-                                  {s.area}
-                                </span>
-                              )}
+                              <div className="font-bold text-slate-700">{s.name} ({s.empId})</div>
+                              <div className="text-xs text-slate-400">區域：{s.area || '未設區'}</div>
                             </div>
                           ))}
                           {showExternalSupervisor && (
                             <div
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                setSupervisor(originalSupervisor);
-                                setSupervisorSearchTerm(originalSupervisor);
+                                setSupervisor(supervisorSearchTerm);
                                 setIsSupervisorDropdownOpen(false);
                               }}
-                              className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-550 font-medium italic"
+                              className="px-3 py-2 hover:bg-amber-50 text-sm cursor-pointer border-t border-amber-200 text-amber-700 font-bold bg-amber-50/50"
                             >
-                              {originalSupervisor} (外部/已離職)
+                              + 使用外單位/自訂個管員：「{supervisorSearchTerm}」
                             </div>
                           )}
                         </>
@@ -480,8 +549,216 @@ export default function CaseForm({ activeCase, onClose }) {
             </div>
           </div>
 
-          {/* 二、計畫擬定時效管控 (A個管作業) */}
-          <div>
+          {/* 條件渲染：若選取「轉介服務紀錄」，展示轉介專屬填寫區塊；若選「一般派案紀錄」，展示二、三、四大項 */}
+          {recordCategory === 'referral' ? (
+            <div className="bg-purple-50/50 border border-purple-200 rounded-2xl p-5 space-y-4">
+              <div className="bg-purple-600 text-white px-4 py-2 rounded-xl flex items-center justify-between">
+                <h3 className="text-sm font-bold m-0 flex items-center gap-1.5">
+                  🔗 轉介服務紀錄登載
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 轉介服務類別控制項 */}
+                <div>
+                  <label className="block text-xs font-bold text-purple-900 mb-1.5">
+                    轉介服務類型
+                  </label>
+                  <select
+                    value={referralType}
+                    onChange={(e) => setReferralType(e.target.value)}
+                    className="w-full rounded-lg border border-purple-300 px-3 py-2 text-sm bg-white font-bold text-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="其他長照服務連結">其他長照服務連結</option>
+                    <option value="轉介醫事C巷弄長照站連結">轉介醫事C巷弄長照站連結</option>
+                  </select>
+                </div>
+
+                {/* 轉介日期 */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    轉介日期
+                  </label>
+                  <input
+                    type="date"
+                    value={referralDate}
+                    onChange={(e) => setReferralDate(e.target.value)}
+                    onPaste={handleDatePaste(setReferralDate, 'date')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 轉介回復日期 */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    轉介回復日期
+                  </label>
+                  <input
+                    type="date"
+                    value={referralReplyDate}
+                    onChange={(e) => setReferralReplyDate(e.target.value)}
+                    onPaste={handleDatePaste(setReferralReplyDate, 'date')}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 服務單位名稱 (提供自動選取與自行輸入) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    轉介服務單位名稱 / 轉介對象
+                  </label>
+                  <input
+                    type="text"
+                    list="referral-units-list"
+                    value={referralUnitName}
+                    onChange={(e) => setReferralUnitName(e.target.value)}
+                    placeholder="點擊或輸入選擇轉介服務單位..."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                  <datalist id="referral-units-list">
+                    {units
+                      .filter((u) => !u.isStopped && u.services && (u.services.includes('轉介') || u.services.includes('REFERRAL')))
+                      .map((u) => (
+                        <option key={u.id} value={u.name} />
+                      ))}
+                  </datalist>
+                </div>
+
+                {/* 差異化動態選單 */}
+                {referralType === '其他長照服務連結' ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      長照轉介資源項目
+                    </label>
+                    <select
+                      value={referralTarget}
+                      onChange={(e) => setReferralTarget(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">-- 請選擇項目 --</option>
+                      <optgroup label="【專業資源】">
+                        <option value="失智症社區服務據點">失智症社區服務據點</option>
+                        <option value="緊急救援">緊急救援</option>
+                        <option value="緊急安置">緊急安置</option>
+                        <option value="家照服務">家照服務</option>
+                        <option value="二手輔具/輔具資源中心">二手輔具/輔具資源中心</option>
+                        <option value="急難救助">急難救助</option>
+                        <option value="物資補助">物資補助</option>
+                        <option value="到宅修繕">到宅修繕</option>
+                        <option value="志工關懷訪視">志工關懷訪視</option>
+                        <option value="其他說明 (專業資源)">其他說明 (專業資源)</option>
+                      </optgroup>
+                      <optgroup label="【醫療相關資源】">
+                        <option value="居家醫療">居家醫療</option>
+                        <option value="安寧緩和">安寧緩和</option>
+                        <option value="健保居家護理">健保居家護理</option>
+                        <option value="其他說明 (醫療相關資源)">其他說明 (醫療相關資源)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      長照個案轉介資源分類
+                    </label>
+                    <select
+                      value={referralTarget}
+                      onChange={(e) => setReferralTarget(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    >
+                      <option value="">-- 請選擇分類 --</option>
+                      <option value="2-3級轉介巷弄長照站">2-3級轉介巷弄長照站</option>
+                      <option value="複評結果未達2級(結案)">複評結果未達2級(結案)</option>
+                      <option value="提供社照C巷弄長照站資訊">提供社照C巷弄長照站資訊</option>
+                      <option value="居家/社區照顧服務不符合需求或入住機構">居家/社區照顧服務不符合需求或入住機構</option>
+                      <option value="提供住宿式機構資訊">提供住宿式機構資訊</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* 轉介原因摘要 */}
+                <div className="col-span-1 md:col-span-3">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    轉介原因摘要 (文字備註，無則空白)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={referralReason}
+                    onChange={(e) => setReferralReason(e.target.value)}
+                    placeholder="請描述轉介原因，若無則空白..."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 轉介追蹤情形 */}
+                <div className="col-span-1 md:col-span-3">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    轉介追蹤情形 (文字備註，無則空白)
+                  </label>
+                  <input
+                    type="text"
+                    value={referralFollowUp}
+                    onChange={(e) => setReferralFollowUp(e.target.value)}
+                    placeholder="例: 案家考慮中 / 已完成銜接 / 文字備註，無則空白..."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 當月是否已完成轉介單一併寄至承辦人信箱 */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    當月是否已完成轉介單一併寄至承辦人信箱
+                  </label>
+                  <input
+                    type="text"
+                    value={emailSentStatus}
+                    onChange={(e) => setEmailSentStatus(e.target.value)}
+                    placeholder="文字備註 (如: 已寄出/未寄出)，無則空白..."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 備註 */}
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    備註
+                  </label>
+                  <input
+                    type="text"
+                    value={referralRemarks}
+                    onChange={(e) => setReferralRemarks(e.target.value)}
+                    placeholder="文字備註，無則空白..."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* 轉介單 / 服務紀錄登記 勾選項 */}
+                <div className="col-span-1 md:col-span-3 flex items-center gap-6 py-2 border-t border-purple-200 mt-2">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={hasReferralForm}
+                      onChange={(e) => setHasReferralForm(e.target.checked)}
+                      className="rounded border-slate-350 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                    />
+                    填寫轉介單 (勾選為「是」，未勾選為「否」)
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isCMSRecorded}
+                      onChange={(e) => setIsCMSRecorded(e.target.checked)}
+                      className="rounded border-slate-350 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                    />
+                    是否已完成 CMS 系統服務紀錄登記 (勾選為「是」，未勾選為「否」)
+                  </label>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* 二、計畫擬定時效管控 (A個管作業) */}
+              <div>
             <div className="bg-[#fef3c7] border-l-4 border-amber-500 px-4 py-1.5 rounded-r-lg mb-4 flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-amber-600" />
               <h3 className="text-sm font-bold text-amber-900 m-0">
@@ -827,18 +1104,51 @@ export default function CaseForm({ activeCase, onClose }) {
             </div>
           </div>
 
-          {/* 四、單位回覆時效與轉介/異常追蹤 (供五表數據匯出) */}
+          {/* 四、單位回覆時效/異常追蹤 (對應五大表 報表 4 欄位結構) */}
           <div>
             <div className="bg-[#e0f2fe] border-l-4 border-[#0284c7] px-4 py-1.5 rounded-r-lg mb-4 flex items-center justify-between">
               <h3 className="text-sm font-bold text-sky-900 m-0">
-                四、單位回覆時效與轉介/異常追蹤
+                四、單位回覆時效/異常追蹤
               </h3>
               <span className="text-[11px] font-semibold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded">
-                報表 2~5 數據匯出必填
+                報表 4 派案單位追蹤異常回復表
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 原因分類 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  原因分類 (案家 / 個案 / 單位 / 其他)
+                </label>
+                <select
+                  value={anomalyReasonType}
+                  onChange={(e) => setAnomalyReasonType(e.target.value)}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                >
+                  <option value="">-- 無異常 --</option>
+                  <option value="案家">案家</option>
+                  <option value="個案">個案</option>
+                  <option value="單位">單位</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              {/* 異常發生日 (設定日期) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  異常發生日 (設定日期)
+                </label>
+                <input
+                  type="date"
+                  value={anomalyDate}
+                  onChange={(e) => setAnomalyDate(e.target.value)}
+                  onPaste={handleDatePaste(setAnomalyDate, 'date')}
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* 單位回覆日 */}
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
                   服務單位回復日期 (單位回覆日)
@@ -852,6 +1162,7 @@ export default function CaseForm({ activeCase, onClose }) {
                 />
               </div>
 
+              {/* 首次服務日期 */}
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
                   首次服務日期 (實際進場日)
@@ -865,113 +1176,102 @@ export default function CaseForm({ activeCase, onClose }) {
                 />
               </div>
 
-              {/* 回覆天數試算與提示 */}
+              {/* 超過天數 (自動計算：單位回覆日與首次服務日期的間隔天數) */}
               <div className="flex flex-col justify-center bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
-                <span className="font-semibold text-slate-600">單位回覆時效計算：</span>
+                <span className="font-semibold text-slate-600">超過天數試算 (回覆日~進場日)：</span>
                 {(() => {
-                  if (!aUnitNotifyDate || !bUnitReplyDate) {
-                    return <span className="text-slate-400 mt-1">需填寫照會日與單位回復日</span>;
+                  if (!bUnitReplyDate || !firstServiceDate) {
+                    return <span className="text-slate-400 mt-1">需填寫單位回覆日與首次服務日</span>;
                   }
-                  const notify = new Date(aUnitNotifyDate);
                   const reply = new Date(bUnitReplyDate);
-                  const diffDays = Math.floor((reply - notify) / (1000 * 60 * 60 * 24));
-                  if (diffDays <= 3) {
-                    return <span className="text-emerald-600 font-bold mt-1">✅ {diffDays} 天 (符合 3 日內時效)</span>;
+                  const service = new Date(firstServiceDate);
+                  if (isNaN(reply.getTime()) || isNaN(service.getTime())) {
+                    return <span className="text-slate-400 mt-1">日期格式無效</span>;
                   }
-                  return <span className="text-rose-600 font-bold mt-1">⚠️ {diffDays} 天 (已超過 3 日，需填寫異常表)</span>;
+                  const diffTime = service.getTime() - reply.getTime();
+                  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                  const displayDays = diffDays >= 0 ? diffDays : 0;
+                  return (
+                    <span className={`font-bold mt-1 text-sm ${displayDays > 3 ? 'text-rose-600' : 'text-purple-700'}`}>
+                      {displayDays > 0 ? `超過 ${displayDays} 天` : `0 天 (即時/當日進場)`}
+                    </span>
+                  );
                 })()}
               </div>
 
+              {/* 異常事項 (品質類別) */}
               <div>
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  異常原因分類
-                </label>
-                <select
-                  value={anomalyReasonType}
-                  onChange={(e) => setAnomalyReasonType(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                >
-                  <option value="">-- 無異常 --</option>
-                  <option value="單位因素">單位因素</option>
-                  <option value="案家因素">案家因素</option>
-                  <option value="其他因素">其他因素</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  異常事項/品質類別
+                  異常事項 (品質類別)
                 </label>
                 <input
                   type="text"
                   value={anomalyCategory}
                   onChange={(e) => setAnomalyCategory(e.target.value)}
-                  placeholder="例: 超過天數/配合家屬時間..."
+                  placeholder="文字備註，若無則空白..."
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
                 />
               </div>
 
-              <div>
+              {/* 異常內容摘述 */}
+              <div className="col-span-1 md:col-span-3">
                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  轉介資源項目
+                  異常內容摘述
                 </label>
-                <select
-                  value={referralTarget}
-                  onChange={(e) => setReferralTarget(e.target.value)}
+                <textarea
+                  rows={2}
+                  value={anomalySummary}
+                  onChange={(e) => setAnomalySummary(e.target.value)}
+                  placeholder="文字備註，若無則空白..."
                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                >
-                  <option value="">-- 無轉介 --</option>
-                  <option value="失智症社區服務據點">失智症社區服務據點</option>
-                  <option value="緊急救援">緊急救援</option>
-                  <option value="緊急安置">緊急安置</option>
-                  <option value="家照服務">家照服務</option>
-                  <option value="二手輔具/輔具資源中心">二手輔具/輔具資源中心</option>
-                  <option value="物資補助">物資補助</option>
-                  <option value="到宅修繕">到宅修繕</option>
-                  <option value="志工關懷訪視">志工關懷訪視</option>
-                  <option value="居家醫療/健保居家護理">居家醫療/健保居家護理</option>
-                  <option value="2-3級轉介巷弄長照站">2-3級轉介巷弄長照站</option>
-                  <option value="提供住宿式機構資訊">提供住宿式機構資訊</option>
-                </select>
+                />
               </div>
 
-              {anomalyReasonType && (
-                <div className="col-span-1 md:col-span-3">
-                  <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                    異常內容摘要與後續追蹤情形
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={anomalySummary}
-                    onChange={(e) => setAnomalySummary(e.target.value)}
-                    placeholder="請輸入異常狀況摘要及後續處置情形..."
-                    className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                  />
-                </div>
-              )}
+              {/* 後續追蹤/辦理情形 */}
+              <div className="col-span-1 md:col-span-3">
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  後續追蹤 / 辦理情形
+                </label>
+                <input
+                  type="text"
+                  value={followUpStatus}
+                  onChange={(e) => setFollowUpStatus(e.target.value)}
+                  placeholder="文字備註，若無則空白..."
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
 
-              <div className="col-span-1 md:col-span-3 flex items-center gap-6 py-1">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={hasReferralForm}
-                    onChange={(e) => setHasReferralForm(e.target.checked)}
-                    className="rounded border-slate-350 text-sky-600 focus:ring-sky-500 w-4 h-4"
-                  />
-                  是否有轉介單
+              {/* 其他 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  其他
                 </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isCMSRecorded}
-                    onChange={(e) => setIsCMSRecorded(e.target.checked)}
-                    className="rounded border-slate-350 text-sky-600 focus:ring-sky-500 w-4 h-4"
-                  />
-                  已完成 CMS 系統服務紀錄登記
+                <input
+                  type="text"
+                  value={otherNote}
+                  onChange={(e) => setOtherNote(e.target.value)}
+                  placeholder="文字備註，若無則空白..."
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              {/* 備註 */}
+              <div>
+                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                  備註
                 </label>
+                <input
+                  type="text"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="文字備註，若無則空白..."
+                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
               </div>
             </div>
           </div>
+          </>
+          )}
 
           {/* 交接訊息生成區 */}
           {bUnitName && (
@@ -1004,15 +1304,8 @@ export default function CaseForm({ activeCase, onClose }) {
             </div>
           )}
 
-          {/* 底端操作按鈕 (保留供長表單快速提交) */}
+          {/* 底端操作按鈕 (保留儲存按鈕) */}
           <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex items-center gap-1 px-4 py-2 border border-slate-250 hover:bg-slate-50 text-slate-600 font-bold rounded-lg text-sm transition cursor-pointer"
-            >
-              取消
-            </button>
             <button
               type="submit"
               className="inline-flex items-center gap-1 px-5 py-2 bg-blue-650 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition cursor-pointer"

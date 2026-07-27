@@ -104,13 +104,60 @@ const initialCases = [
     hasReferralForm: true,
     isCMSRecorded: true,
     isClosed: false,
+  },
+  {
+    id: '115X15023',
+    name: '藍一彥',
+    gender: 'M',
+    supervisor: '黃凱琳',
+    area: '新莊區',
+    date: '2026/05/11',
+    superApprovalDate: '2026-05-11T09:07:47',
+    approvalDate: '2026-05-11T09:07:47',
+    deadlineDate: '2026-05-12T12:00',
+    submitDate: '2026-05-12T10:00',
+    status: '時效內',
+    delayReason: '',
+    dispatchType: '新案_初評',
+    serviceContent: 'BA',
+    bUnitName: '悠康事業有限公司附設新北市私立悠康居家長照機構',
+    dispatchResult: '服務提供',
+    isClosed: false,
+  },
+  {
+    id: '115X15023',
+    name: '藍一彥',
+    gender: 'M',
+    supervisor: '黃凱琳',
+    area: '新莊區',
+    date: '2026/07/29',
+    superApprovalDate: '2026-07-29T16:55:13',
+    approvalDate: '2026-07-29T16:55:13',
+    deadlineDate: '2026-07-31T12:00',
+    submitDate: '',
+    status: '時效內',
+    delayReason: '',
+    dispatchType: '新案_初評',
+    serviceContent: 'DA',
+    bUnitName: '大安居家喘息服務處',
+    dispatchResult: '服務提供',
+    isClosed: false,
   }
 ];
 
 export function CaseProvider({ children }) {
   const [cases, setCases] = useState(() => {
     const local = localStorage.getItem('local_cases');
-    return local ? JSON.parse(local) : initialCases;
+    if (!local) return initialCases;
+    const parsed = JSON.parse(local);
+    // 確保展示資料包含 115X15023 多碼別紀錄
+    const hasTargetCase = parsed.some(c => c.id === '115X15023');
+    if (!hasTargetCase) {
+      const merged = [...initialCases, ...parsed.filter(c => c.id !== '115X15023')];
+      localStorage.setItem('local_cases', JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   });
 
   useEffect(() => {
@@ -148,6 +195,17 @@ export function CaseProvider({ children }) {
     fetchCases();
   }, []);
 
+  const isRecordMatch = (item, target) => {
+    if (!target) return false;
+    if (typeof target === 'object') {
+      if (target.id && target.serviceContent) {
+        return item.id === target.id && item.serviceContent === target.serviceContent;
+      }
+      if (target.id) return item.id === target.id;
+    }
+    return item.id === target;
+  };
+
   const addCase = async (newCase) => {
     const updated = [...cases, newCase];
     setCases(updated);
@@ -162,56 +220,60 @@ export function CaseProvider({ children }) {
     }
   };
 
-  const updateCase = async (id, updatedFields) => {
-    const updated = cases.map((c) => (c.id === id ? { ...c, ...updatedFields } : c));
+  const updateCase = async (target, updatedFields) => {
+    const updated = cases.map((c) => (isRecordMatch(c, target) ? { ...c, ...updatedFields } : c));
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'cases', id), updatedFields);
+        const docId = typeof target === 'object' ? target.id : target;
+        await updateDoc(doc(db, 'cases', docId), updatedFields);
       } catch (error) {
         console.error('Error updating case in Firestore:', error);
       }
     }
   };
 
-  const closeCase = async (id) => {
-    const updated = cases.map((c) => (c.id === id ? { ...c, isClosed: true } : c));
+  const closeCase = async (target) => {
+    const updated = cases.map((c) => (isRecordMatch(c, target) ? { ...c, isClosed: true } : c));
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'cases', id), { isClosed: true });
+        const docId = typeof target === 'object' ? target.id : target;
+        await updateDoc(doc(db, 'cases', docId), { isClosed: true });
       } catch (error) {
         console.error('Error closing case in Firestore:', error);
       }
     }
   };
 
-  const reopenCase = async (id) => {
-    const updated = cases.map((c) => (c.id === id ? { ...c, isClosed: false } : c));
+  const reopenCase = async (target) => {
+    const updated = cases.map((c) => (isRecordMatch(c, target) ? { ...c, isClosed: false } : c));
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await updateDoc(doc(db, 'cases', id), { isClosed: false });
+        const docId = typeof target === 'object' ? target.id : target;
+        await updateDoc(doc(db, 'cases', docId), { isClosed: false });
       } catch (error) {
         console.error('Error reopening case in Firestore:', error);
       }
     }
   };
 
-  const deleteCase = async (id) => {
-    const updated = cases.filter((c) => c.id !== id);
+  const deleteCase = async (target) => {
+    const updated = cases.filter((c) => !isRecordMatch(c, target));
     setCases(updated);
     localStorage.setItem('local_cases', JSON.stringify(updated));
 
     if (isFirebaseConfigured()) {
       try {
-        await deleteDoc(doc(db, 'cases', id));
+        const docId = typeof target === 'object' ? target.id : target;
+        await deleteDoc(doc(db, 'cases', docId));
       } catch (error) {
         console.error('Error deleting case from Firestore:', error);
       }
