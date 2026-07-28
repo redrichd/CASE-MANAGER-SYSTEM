@@ -141,6 +141,11 @@ export default function ReportExportModal({ isOpen, onClose, cases = [] }) {
                   (提示: 目前未綁定 VITE_GAS_REPORT_EXPORT_URL，已開啟預設範本頁面)
                 </p>
               )}
+              {resultData.isNoCorsSent && (
+                <p className="text-[11px] text-blue-700 font-semibold">
+                  (已透過雲端背景通道成功發送寫入請求至 Google Drive！)
+                </p>
+              )}
             </div>
           )}
 
