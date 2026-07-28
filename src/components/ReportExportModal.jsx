@@ -80,7 +80,7 @@ export default function ReportExportModal({ isOpen, onClose, cases = [] }) {
           <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-4 flex gap-3 text-xs text-blue-900">
             <Calendar className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold block mb-0.5">預設雲端範本 ID：1JxBoHr6orfsqyCMpGsBkZuEN8Q8H3u8d</span>
+              <span className="font-bold block mb-0.5">預設雲端範本 ID：10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM</span>
               系統將針對指定的月報月份，自動複製範本並填入《派案情形回復表》、《其他長照服務資源連結表》、《轉介醫事C》、《時效性回復表》、《異常回復表》共 5 張表。
             </div>
           </div>

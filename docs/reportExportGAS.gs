@@ -13,7 +13,7 @@
  *    VITE_GAS_REPORT_EXPORT_URL="https://script.google.com/macros/s/..."
  */
 
-const TEMPLATE_FILE_ID = "1JxBoHr6orfsqyCMpGsBkZuEN8Q8H3u8d";
+const TEMPLATE_FILE_ID = "10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM";
 
 function doPost(e) {
   try {

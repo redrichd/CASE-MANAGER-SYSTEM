@@ -281,8 +281,8 @@ export async function exportMonthlyReport({ cases = [], year, month, aUnitName }
       success: true,
       isSimulated: true,
       fileName: `新北市A區月報表_${rocMonthStr}`,
-      sheetUrl: `https://docs.google.com/spreadsheets/d/1JxBoHr6orfsqyCMpGsBkZuEN8Q8H3u8d/edit`,
-      excelDownloadUrl: `https://docs.google.com/spreadsheets/d/1JxBoHr6orfsqyCMpGsBkZuEN8Q8H3u8d/export?format=xlsx`
+      sheetUrl: `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/edit`,
+      excelDownloadUrl: `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/export?format=xlsx`
     };
   }
 
