@@ -89,10 +89,10 @@ function doPost(e) {
     // 5. 處理 Sheet 4: 追蹤B碼服務時效性回復表
     const sheet4 = newSpreadsheet.getSheetByName("追蹤B碼服務時效性回復表");
     if (sheet4) {
-      sheet4.getRange("H1").setValue(`(${targetMonthStr})`);
-      sheet4.getRange("C2").setValue(aUnitFullName);
+      sheet4.getRange("A3").setValue(`(${targetMonthStr})`);
+      sheet4.getRange("C3").setValue(aUnitFullName);
       if (sheet4Data.length > 0) {
-        sheet4.getRange(5, 1, sheet4Data.length, sheet4Data[0].length).setValues(sheet4Data);
+        sheet4.getRange(7, 1, sheet4Data.length, sheet4Data[0].length).setValues(sheet4Data);
       }
     }
 

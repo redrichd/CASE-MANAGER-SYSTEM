@@ -163,6 +163,14 @@ export function buildSheet3Matrix(cases = [], aUnitName = "悠康事業有限公
   ]);
 }
 
+function mapToDropdownServiceItem(rawSvc = '') {
+  if (rawSvc.includes('BB') || rawSvc.includes('日照')) return '日照BB碼';
+  if (rawSvc.includes('BC') || rawSvc.includes('家托')) return '家托BC碼';
+  if (rawSvc.includes('C') || rawSvc.includes('專業')) return '專業C碼';
+  if (rawSvc.includes('G') || rawSvc.includes('喘息')) return '喘息G碼';
+  return '居服BA碼';
+}
+
 /**
  * 建立 Sheet 4: 追蹤B碼服務時效性回復表
  */
@@ -171,7 +179,7 @@ export function buildSheet4Matrix(cases = [], aUnitName = "悠康事業有限公
 
   cases.forEach(item => {
     const bName = item.bUnitName || '未指定B單位';
-    const serviceItem = item.serviceContent || '居服BA碼';
+    const serviceItem = mapToDropdownServiceItem(item.serviceContent || '');
     const groupKey = `${bName}_${serviceItem}`;
 
     if (!bUnitStats[groupKey]) {
