@@ -50,7 +50,7 @@ describe('reportExportService', () => {
         aUnitNotifyDate: '2026/03/01',
         firstServiceDate: '2026/03/04',
         bUnitName: '大同居服',
-        serviceContent: 'BA',
+        serviceContent: 'BA,C',
         referralTarget: '新莊照管中心',
         anomalySummary: '延遲原因說明'
       }
@@ -68,5 +68,12 @@ describe('reportExportService', () => {
 
     expect(s4[0][1]).toBe('大同居服');
     expect(s4[0][4]).toBe(1); // 1-3天內的派案數
+
+    // 測試全無資料時回傳空陣列
+    expect(buildSheet2Matrix([])).toEqual([]);
+    expect(buildSheet3Matrix([])).toEqual([]);
+    expect(buildSheet4Matrix([])).toEqual([]);
+    expect(buildSheet5Matrix([])).toEqual([]);
   });
 });
+

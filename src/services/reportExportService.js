@@ -30,12 +30,20 @@ function getDaysDiff(startDateStr, endDateStr) {
  * 過濾出指定西元年月之個案
  */
 export function filterCasesByMonth(cases = [], year, month) {
-  const targetPrefix = `${year}/${String(month).padStart(2, '0')}`;
-  const targetIsoPrefix = `${year}-${String(month).padStart(2, '0')}`;
+  const mPad = String(month).padStart(2, '0');
+  const mRaw = String(month);
 
   return cases.filter(item => {
-    const caseDate = item.date || item.approvalDate || item.aUnitNotifyDate || '';
-    return caseDate.startsWith(targetPrefix) || caseDate.startsWith(targetIsoPrefix);
+    const caseDate = item.date || item.approvalDate || item.aUnitNotifyDate || item.referralDate || '';
+    if (!caseDate) return false;
+
+    const parts = caseDate.split(/[\/\-\ T]/);
+    if (parts.length >= 2) {
+      const y = parts[0];
+      const m = parts[1];
+      return String(y) === String(year) && (m === mPad || m === mRaw);
+    }
+    return false;
   });
 }
 
@@ -83,11 +91,8 @@ export function buildSheet1Matrix(cases = [], aUnitName = "悠康事業有限公
 
   const fmt = val => (val > 0 ? val : '');
 
-  if (bUnits.length === 0) {
-    return [[
-      aUnitName, 1, totalCases, cmsDispatches, selfDispatches,
-      "無派案紀錄", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
-    ]];
+  if (bUnits.length === 0 || totalCases === 0) {
+    return [];
   }
 
   return bUnits.map((b, index) => [
@@ -107,45 +112,59 @@ export function buildSheet1Matrix(cases = [], aUnitName = "悠康事業有限公
 }
 
 /**
- * 建立 Sheet 2: 其他長照服務資源連結表
+ * 建立 Sheet 2: 其他長照服務資源連結表 (轉介服務清冊)
  */
 export function buildSheet2Matrix(cases = [], aUnitName = "悠康事業有限公司附設新北市私立悠康居家長照機構") {
-  const referrals = cases.filter(c => c.referralTarget || c.referralDate);
+  const referrals = cases.filter(c => c.referralTarget || c.referralDate || (c.serviceContent || '').includes('轉介'));
+
   if (referrals.length === 0) {
-    return [[
-      1, aUnitName, "新莊區", "115X0000", "", "無轉介單位",
-      "無轉介說明", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      "", "無", "否", "否"
-    ]];
+    return [];
   }
 
-  return referrals.map((item, index) => [
-    index + 1,
-    aUnitName,
-    item.area || "新莊區",
-    item.id || "",
-    item.referralDate || item.date || "",
-    item.referralTarget || item.bUnitName || "",
-    item.anomalySummary || item.delayReason || "轉介資源評估與連結",
-    0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    item.referralReplyDate || "",
-    item.anomalySummary || "持續追蹤中",
-    item.hasReferralForm ? "是" : "否",
-    item.isCMSRecorded ? "是" : "否"
-  ]);
+  return referrals.map((item, index) => {
+    // 14 個資源連結項目 (H ~ U)
+    const res = new Array(14).fill(0);
+    const target = (item.referralTarget || item.serviceContent || '').toLowerCase();
+
+    if (target.includes('失智')) res[0] = 1;
+    else if (target.includes('救援')) res[1] = 1;
+    else if (target.includes('安置')) res[2] = 1;
+    else if (target.includes('家照') || target.includes('照顧者') || target.includes('家屬')) res[3] = 1;
+    else if (target.includes('輔具')) res[4] = 1;
+    else if (target.includes('急難')) res[5] = 1;
+    else if (target.includes('物資')) res[6] = 1;
+    else if (target.includes('修繕')) res[7] = 1;
+    else if (target.includes('志工') || target.includes('訪視')) res[8] = 1;
+    else if (target.includes('醫療')) res[10] = 1;
+    else if (target.includes('安寧')) res[11] = 1;
+    else if (target.includes('家醫') || target.includes('健保')) res[12] = 1;
+    else res[9] = 1; // 其他說明1
+
+    return [
+      index + 1,
+      aUnitName,
+      item.area || "新莊區",
+      item.id || "",
+      item.referralDate || item.date || "",
+      item.referralTarget || item.bUnitName || "",
+      item.anomalySummary || item.delayReason || "轉介資源評估與連結",
+      ...res,
+      item.referralReplyDate || "",
+      item.anomalySummary || "持續追蹤中",
+      item.hasReferralForm ? "是" : "否",
+      item.isCMSRecorded ? "是" : "否"
+    ];
+  });
 }
 
 /**
  * 建立 Sheet 3: 轉介醫事C巷弄長照站連結表
  */
 export function buildSheet3Matrix(cases = [], aUnitName = "悠康事業有限公司附設新北市私立悠康居家長照機構") {
-  const cCases = cases.filter(c => (c.serviceContent || '').includes('C') || (c.referralTarget || '').includes('C站'));
+  const cCases = cases.filter(c => (c.serviceContent || '').includes('C') || (c.referralTarget || '').includes('C'));
 
   if (cCases.length === 0) {
-    return [[
-      1, aUnitName, "", "", "新莊區", "無醫事C單位", "115X0000", "無",
-      0, 0, 0, 0, 0, "是", "否", "考量中", ""
-    ]];
+    return [];
   }
 
   return cCases.map((item, index) => [
@@ -205,7 +224,7 @@ export function buildSheet4Matrix(cases = [], aUnitName = "悠康事業有限公
 
   const list = Object.values(bUnitStats);
   if (list.length === 0) {
-    return [[1, "無B單位紀錄", "居服BA碼", 0, 0, 0, 0, 0, 0]];
+    return [];
   }
 
   return list.map((item, index) => [
@@ -233,10 +252,7 @@ export function buildSheet5Matrix(cases = [], aUnitName = "悠康事業有限公
   });
 
   if (anomalies.length === 0) {
-    return [[
-      1, aUnitName, "三重區", "無異常單位", "115X0000", targetRocMonthStr,
-      "BA碼", "案家原因", "", "", "", 0, "無異常", "服務過程順利無延遲異常", "持續服務", "", ""
-    ]];
+    return [];
   }
 
   return anomalies.map((item, index) => {
@@ -247,7 +263,7 @@ export function buildSheet5Matrix(cases = [], aUnitName = "悠康事業有限公
     return [
       index + 1,
       aUnitName,
-      item.area || "三重區",
+      item.area || "新莊區",
       item.bUnitName || "服務單位",
       item.id || "",
       targetRocMonthStr,
@@ -299,11 +315,10 @@ export async function exportMonthlyReport({ cases = [], year, month, aUnitName, 
     };
   }
 
-  // 建立動態 HTML Form 進行表單提交
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = gasUrl;
-  form.target = '_blank'; // 開啟新視窗/新分頁
+  form.target = '_blank';
 
   const input = document.createElement('input');
   input.type = 'hidden';
@@ -320,3 +335,4 @@ export async function exportMonthlyReport({ cases = [], year, month, aUnitName, 
     fileName: `新北市A區月報表_${rocMonthStr}`
   };
 }
+

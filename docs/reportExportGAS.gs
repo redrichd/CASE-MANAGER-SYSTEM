@@ -15,6 +15,26 @@
 
 const TEMPLATE_FILE_ID = "10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM";
 
+/**
+ * 輔助函式：安全設定月份標籤（支援合併儲存格）
+ */
+function setMonthHeader(sheet, monthStr, candidates) {
+  const formattedText = `(${monthStr})`;
+  for (let i = 0; i < candidates.length; i++) {
+    try {
+      const cellRef = candidates[i];
+      const range = sheet.getRange(cellRef);
+      if (range.isPartOfMerge()) {
+        const mergedRanges = range.getMergedRanges();
+        for (let j = 0; j < mergedRanges.length; j++) {
+          mergedRanges[j].setValue(formattedText);
+        }
+      }
+      range.setValue(formattedText);
+    } catch (err) {}
+  }
+}
+
 function doPost(e) {
   try {
     let contents;
@@ -27,7 +47,7 @@ function doPost(e) {
     }
 
     const {
-      targetMonthStr, // 例: "115年03月"
+      targetMonthStr, // 例: "115年06月"
       aUnitFullName = "悠康事業有限公司附設新北市私立悠康居家長照機構",
       sheet1Data = [],
       sheet2Data = [],
@@ -46,7 +66,8 @@ function doPost(e) {
     // 2. 處理 Sheet 1: 派案情形回復表
     const sheet1 = newSpreadsheet.getSheetByName("派案情形回復表");
     if (sheet1) {
-      sheet1.getRange("U2").setValue(`(${targetMonthStr})`);
+      setMonthHeader(sheet1, targetMonthStr, ["U2", "R2", "J2"]);
+      sheet1.getRange(8, 1, 45, 21).clearContent();
       if (sheet1Data.length > 0) {
         sheet1.getRange(8, 1, sheet1Data.length, sheet1Data[0].length).setValues(sheet1Data);
 
@@ -60,22 +81,55 @@ function doPost(e) {
       }
     }
 
-    // 3. 處理 Sheet 2: 其他長照服務資源連結表
+    // 3. 處理 Sheet 2: 其他長照服務資源連結表 (轉介服務清冊)
+    // 注意：絕對不可填入/覆蓋月份日期，保留 Row 1 標題「新北市社區整合型服務中心(A)轉介服務清冊」與 W4 儲存格「轉介回復日期」完整無損！
     const sheet2 = newSpreadsheet.getSheetByName("其他長照服務資源連結表");
     if (sheet2) {
-      sheet2.getRange("W1").setValue(`(${targetMonthStr})`);
+      // 絕不呼叫 setMonthHeader，維持範本標題與W4完整
+      
+      // 清空第 6 列開始的資料區域
+      sheet2.getRange(6, 1, 45, 23).clearContent();
+
       if (sheet2Data.length > 0) {
         sheet2.getRange(6, 1, sheet2Data.length, sheet2Data[0].length).setValues(sheet2Data);
       }
+
+      // 重算第 5 列 (總計列) 的 H5:U5 資源統計欄位
+      const colTotals = new Array(14).fill(0);
+      if (sheet2Data.length > 0) {
+        sheet2Data.forEach(row => {
+          for (let c = 0; c < 14; c++) {
+            const val = Number(row[7 + c]) || 0;
+            colTotals[c] += val;
+          }
+        });
+      }
+      sheet2.getRange(5, 8, 1, 14).setValues([colTotals]);
     }
 
-    // 4. 處理 Sheet 3: 轉介醫事C巷弄長照站連結表
+    // 4. 處理 Sheet 3: 轉介醫事C巷弄長照站連結表 (轉介社區式資源清冊)
     const sheet3 = newSpreadsheet.getSheetByName("轉介醫事C巷弄長照站連結表");
     if (sheet3) {
-      sheet3.getRange("Q2").setValue(`(${targetMonthStr})`);
+      setMonthHeader(sheet3, targetMonthStr, ["Q2", "P2", "R2"]);
+      
+      // 清空第 6 列開始的舊資料區域（絕對保護第5列總計列與第3~4列標頭）
+      sheet3.getRange(6, 1, 45, 17).clearContent();
+
+      const cTotals = new Array(5).fill(0);
+
       if (sheet3Data.length > 0) {
-        sheet3.getRange(5, 1, sheet3Data.length, sheet3Data[0].length).setValues(sheet3Data);
+        // 資料務必從第 6 列開始寫入 (第 5 列為總計列)
+        sheet3.getRange(6, 1, sheet3Data.length, sheet3Data[0].length).setValues(sheet3Data);
+
+        sheet3Data.forEach(row => {
+          for (let c = 0; c < 5; c++) {
+            cTotals[c] += (Number(row[8 + c]) || 0);
+          }
+        });
       }
+
+      // 更新第 5 列總計 I5:M5 (Cols 9 to 13)
+      sheet3.getRange(5, 9, 1, 5).setValues([cTotals]);
     }
 
     // 5. 處理 Sheet 4: 追蹤B碼服務時效性回復表
@@ -83,17 +137,37 @@ function doPost(e) {
     if (sheet4) {
       sheet4.getRange("A3").setValue(`(${targetMonthStr})`);
       sheet4.getRange("C3").setValue(aUnitFullName);
+      
+      // 清空第 7 列起的資料區（絕對保護第4~5列標頭與第6列總計列）
+      sheet4.getRange(7, 1, 45, 9).clearContent();
+
+      const totals = new Array(6).fill(0);
+
       if (sheet4Data.length > 0) {
+        // 資料務必從第 7 列寫入
         sheet4.getRange(7, 1, sheet4Data.length, sheet4Data[0].length).setValues(sheet4Data);
+
+        sheet4Data.forEach(row => {
+          for (let c = 0; c < 6; c++) {
+            totals[c] += (Number(row[3 + c]) || 0);
+          }
+        });
       }
+
+      // 更新第 6 列總計 D6:I6
+      sheet4.getRange(6, 4, 1, 6).setValues([totals]);
     }
 
     // 6. 處理 Sheet 5: 追蹤服務異常回復表
     const sheet5 = newSpreadsheet.getSheetByName("追蹤服務異常回復表");
     if (sheet5) {
-      sheet5.getRange("P2").setValue(`(${targetMonthStr})`);
+      setMonthHeader(sheet5, targetMonthStr, ["P2", "Q2"]);
+      
+      // 清空第 6 列開始的舊資料區域（絕對保護第3~5列範本標頭）
+      sheet5.getRange(6, 1, 45, 17).clearContent();
+
       if (sheet5Data.length > 0) {
-        sheet5.getRange(5, 1, sheet5Data.length, sheet5Data[0].length).setValues(sheet5Data);
+        sheet5.getRange(6, 1, sheet5Data.length, sheet5Data[0].length).setValues(sheet5Data);
       }
     }
 
@@ -104,7 +178,6 @@ function doPost(e) {
     const excelDownloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
     const targetRedirectUrl = (exportType === 'excel') ? excelDownloadUrl : sheetUrl;
 
-    // 回傳包含自動跳轉指令的 HTML
     return HtmlService.createHtmlOutput(
       `<!DOCTYPE html>
       <html>
