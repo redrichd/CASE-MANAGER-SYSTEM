@@ -125,7 +125,7 @@ export function buildSheet2Matrix(cases = [], aUnitName = "悠康事業有限公
     item.referralDate || item.date || "",
     item.referralTarget || item.bUnitName || "",
     item.anomalySummary || item.delayReason || "轉介資源評估與連結",
-    0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 專業資源與醫療相關資源加總標註
+    0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     item.referralReplyDate || "",
     item.anomalySummary || "持續追蹤中",
     item.hasReferralForm ? "是" : "否",
@@ -155,7 +155,7 @@ export function buildSheet3Matrix(cases = [], aUnitName = "悠康事業有限公
     item.bUnitName || item.referralTarget || "醫事C長照站",
     item.id || "",
     item.name || "",
-    0, 0, 1, 0, 0, // 2-3級/複評/巷弄長照站/機構資訊
+    0, 0, 1, 0, 0,
     item.isCMSRecorded ? "是" : "否",
     item.hasReferralForm ? "是" : "否",
     "穩定服務中",
@@ -256,15 +256,16 @@ export function buildSheet5Matrix(cases = [], aUnitName = "悠康事業有限公
 }
 
 /**
- * 執行完整 5-Tab 月報表匯出
+ * 執行完整 5-Tab 月報表匯出 (透過 Form POST 直連新頁面，100% 避免 CORS 問題)
  */
-export async function exportMonthlyReport({ cases = [], year, month, aUnitName }) {
+export async function exportMonthlyReport({ cases = [], year, month, aUnitName, exportType = 'sheet' }) {
   const rocMonthStr = formatRocMonth(year, month);
   const filteredCases = filterCasesByMonth(cases, year, month);
 
   const payload = {
     targetMonthStr: rocMonthStr,
     aUnitFullName: aUnitName || "悠康事業有限公司附設新北市私立悠康居家長照機構",
+    exportType: exportType, // 'sheet' 或 'excel'
     sheet1Data: buildSheet1Matrix(filteredCases, aUnitName),
     sheet2Data: buildSheet2Matrix(filteredCases, aUnitName),
     sheet3Data: buildSheet3Matrix(filteredCases, aUnitName),
@@ -275,52 +276,37 @@ export async function exportMonthlyReport({ cases = [], year, month, aUnitName }
   const gasUrl = import.meta.env.VITE_GAS_REPORT_EXPORT_URL;
 
   if (!gasUrl) {
-    // 降級離線/模擬回傳 (若未設定 Web App URL)
-    console.warn("⚠️ VITE_GAS_REPORT_EXPORT_URL 未設定，使用模擬回傳結果。");
+    console.warn("⚠️ VITE_GAS_REPORT_EXPORT_URL 未設定，開啟範本網址。");
+    const fallbackUrl = exportType === 'excel'
+      ? `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/export?format=xlsx`
+      : `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/edit`;
+
+    window.open(fallbackUrl, '_blank');
     return {
       success: true,
       isSimulated: true,
-      fileName: `新北市A區月報表_${rocMonthStr}`,
-      sheetUrl: `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/edit`,
-      excelDownloadUrl: `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/export?format=xlsx`
+      fileName: `新北市A區月報表_${rocMonthStr}`
     };
   }
 
-  try {
-    // 使用 text/plain 可避免預檢 CORS preflight 被拒絕
-    const response = await fetch(gasUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
+  // 建立動態 HTML Form 進行表單提交
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = gasUrl;
+  form.target = '_blank'; // 開啟新視窗/新分頁
 
-    if (!response.ok) {
-      throw new Error(`匯出失敗 (HTTP ${response.status})`);
-    }
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'payload';
+  input.value = JSON.stringify(payload);
+  form.appendChild(input);
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || "生成報表時發生錯誤");
-    }
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 
-    return result;
-  } catch (err) {
-    console.warn("標準 fetch 受到 GAS 跨網域轉址影響，切換至 no-cors 穿透模式發送：", err);
-
-    // 切換至 no-cors 模式，確保 payload 順利抵達 GAS 執行寫入
-    await fetch(gasUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-
-    return {
-      success: true,
-      isNoCorsSent: true,
-      fileName: `新北市A區月報表_${rocMonthStr}`,
-      sheetUrl: `https://drive.google.com/drive/my-drive`,
-      excelDownloadUrl: `https://docs.google.com/spreadsheets/d/10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM/export?format=xlsx`
-    };
-  }
+  return {
+    success: true,
+    fileName: `新北市A區月報表_${rocMonthStr}`
+  };
 }

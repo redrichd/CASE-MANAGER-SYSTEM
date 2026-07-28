@@ -21,7 +21,7 @@ export default function ReportExportModal({ isOpen, onClose, cases = [] }) {
     setExporting(true);
     setErrorMsg('');
     setResultData(null);
-    setExportStatus('正在擷取個案與派案資料...');
+    setExportStatus('正在擷取個案並送出雲端產表請求...');
 
     try {
       const fullYear = rocYear + 1911;
@@ -31,17 +31,12 @@ export default function ReportExportModal({ isOpen, onClose, cases = [] }) {
         cases,
         year: fullYear,
         month,
-        aUnitName: "悠康事業有限公司附設新北市私立悠康居家長照機構"
+        aUnitName: "悠康事業有限公司附設新北市私立悠康居家長照機構",
+        exportType: actionType
       });
 
       setResultData(result);
-      setExportStatus('報表生成完成！');
-
-      if (actionType === 'excel' && result.excelDownloadUrl) {
-        window.open(result.excelDownloadUrl, '_blank');
-      } else if (actionType === 'sheet' && result.sheetUrl) {
-        window.open(result.sheetUrl, '_blank');
-      }
+      setExportStatus('已開啓新分頁進行雲端報表產製！');
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || '匯出報表時發生錯誤');

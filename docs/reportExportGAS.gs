@@ -17,7 +17,15 @@ const TEMPLATE_FILE_ID = "10gAo61b7d3_V4DMcxApDmfqNiDANAoet5z3vmcxVSrM";
 
 function doPost(e) {
   try {
-    const contents = JSON.parse(e.postData.contents);
+    let contents;
+    if (e.parameter && e.parameter.payload) {
+      contents = JSON.parse(e.parameter.payload);
+    } else if (e.postData && e.postData.contents) {
+      contents = JSON.parse(e.postData.contents);
+    } else {
+      throw new Error("找不到有效的報表資料");
+    }
+
     const {
       targetMonthStr, // 例: "115年03月"
       aUnitFullName = "悠康事業有限公司附設新北市私立悠康居家長照機構",
@@ -25,7 +33,8 @@ function doPost(e) {
       sheet2Data = [],
       sheet3Data = [],
       sheet4Data = [],
-      sheet5Data = []
+      sheet5Data = [],
+      exportType = "sheet" // 'sheet' 或 'excel'
     } = contents;
 
     // 1. 複製雲端硬碟中的 5-Tab 範本檔
@@ -39,19 +48,16 @@ function doPost(e) {
     if (sheet1) {
       sheet1.getRange("U2").setValue(`(${targetMonthStr})`);
       if (sheet1Data.length > 0) {
-        // 從第 8 列開始填寫資料
         sheet1.getRange(8, 1, sheet1Data.length, sheet1Data[0].length).setValues(sheet1Data);
 
-        // 若資料大於 1 列，對左側固定資訊 (欄 A~E) 執行跨列垂直合併，使圖表邊框美觀
         if (sheet1Data.length > 1) {
-          sheet1.getRange(8, 1, sheet1Data.length, 1).mergeVertically(); // A: A單位名稱
-          sheet1.getRange(8, 2, sheet1Data.length, 1).mergeVertically(); // B: 序號
-          sheet1.getRange(8, 3, sheet1Data.length, 1).mergeVertically(); // C: 單位總在案量
-          sheet1.getRange(8, 4, sheet1Data.length, 1).mergeVertically(); // D: 照管當月派案量
-          sheet1.getRange(8, 5, sheet1Data.length, 1).mergeVertically(); // E: 當月自行發掘
+          sheet1.getRange(8, 1, sheet1Data.length, 1).mergeVertically();
+          sheet1.getRange(8, 2, sheet1Data.length, 1).mergeVertically();
+          sheet1.getRange(8, 3, sheet1Data.length, 1).mergeVertically();
+          sheet1.getRange(8, 4, sheet1Data.length, 1).mergeVertically();
+          sheet1.getRange(8, 5, sheet1Data.length, 1).mergeVertically();
         }
 
-        // 高亮標註同一或關聯單位（如「悠康」開頭單位設為黃底紅字）
         for (let i = 0; i < sheet1Data.length; i++) {
           const bUnitName = String(sheet1Data[i][5] || '');
           if (bUnitName.includes('悠康')) {
@@ -101,23 +107,36 @@ function doPost(e) {
 
     SpreadsheetApp.flush();
 
-    // 取得 Google Sheet 檢視連結與 Excel 直接下載連結
     const fileId = newFile.getId();
     const sheetUrl = newSpreadsheet.getUrl();
     const excelDownloadUrl = `https://docs.google.com/spreadsheets/d/${fileId}/export?format=xlsx`;
+    const targetRedirectUrl = (exportType === 'excel') ? excelDownloadUrl : sheetUrl;
 
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      fileId: fileId,
-      sheetUrl: sheetUrl,
-      excelDownloadUrl: excelDownloadUrl,
-      fileName: newFileName
-    })).setMimeType(ContentService.MimeType.JSON);
+    // 回傳包含自動跳轉指令的 HTML
+    return HtmlService.createHtmlOutput(
+      `<!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>正在開啟月報表...</title>
+        </head>
+        <body style="font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f1f5f9; color: #1e293b;">
+          <div style="text-align: center; background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; max-width: 400px;">
+            <div style="width: 48px; h-48px; margin: 0 auto 16px; background: #2563eb; color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">✓</div>
+            <h2 style="color: #1e3a8a; margin: 0 0 8px 0; font-size: 20px;">月報表生成成功！</h2>
+            <p style="color: #64748b; font-size: 14px; margin: 0 0 20px 0;">正在自動為您開啟新建的 5 張表格...</p>
+            <a href="${targetRedirectUrl}" target="_self" style="display: inline-block; background: #2563eb; color: white; padding: 10px 20px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px;">如果頁面未自動跳轉，請點此開啟</a>
+            <script>
+              setTimeout(function() {
+                window.location.href = "${targetRedirectUrl}";
+              }, 500);
+            </script>
+          </div>
+        </body>
+      </html>`
+    );
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: error.message || String(error)
-    })).setMimeType(ContentService.MimeType.JSON);
+    return HtmlService.createHtmlOutput(`<h3>生成失敗: ${error.message}</h3>`);
   }
 }
