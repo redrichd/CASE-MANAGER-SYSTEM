@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CaseProvider } from './contexts/CaseContext';
+import { CaseProvider, useCases } from './contexts/CaseContext';
 import { UnitProvider } from './contexts/UnitContext';
 import { StaffProvider } from './contexts/StaffContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -8,12 +8,15 @@ import ActiveCases from './pages/ActiveCases';
 import ClosedCases from './pages/ClosedCases';
 import Units from './pages/Units';
 import Staff from './pages/Staff';
-import { Heart } from 'lucide-react';
+import ReportExportModal from './components/ReportExportModal';
+import { Heart, FileSpreadsheet } from 'lucide-react';
 import './App.css';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('activeCases');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const { currentUser, loading, loginWithGoogle, loginSimulated, logout, role, isPending } = useAuth();
+  const { cases = [] } = useCases() || {};
 
   if (loading) {
     return (
@@ -185,50 +188,61 @@ function AppContent() {
       {/* 主要白色卡片容器 */}
       <div className="max-w-7xl mx-auto bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
         
-        {/* 功能分頁選單 */}
-        <div className="flex bg-[#f1f5f9] p-1.5 rounded-2xl w-fit border border-slate-250 mb-6">
+        {/* 功能分頁選單與匯出按鈕 */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex bg-[#f1f5f9] p-1.5 rounded-2xl w-fit border border-slate-250">
+            <button
+              onClick={() => setActiveTab('activeCases')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeTab === 'activeCases'
+                  ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              個案
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('closedCases')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeTab === 'closedCases'
+                  ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              結案
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('units')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeTab === 'units'
+                  ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              派案單位
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeTab === 'staff'
+                  ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              人員資訊
+            </button>
+          </div>
+
+          {/* 匯出月報表按鈕 */}
           <button
-            onClick={() => setActiveTab('activeCases')}
-            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'activeCases'
-                ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
+            onClick={() => setIsExportModalOpen(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-5 py-2.5 rounded-2xl text-sm font-bold shadow-md shadow-emerald-600/20 hover:from-emerald-700 hover:to-teal-700 active:scale-98 transition cursor-pointer"
           >
-            個案
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('closedCases')}
-            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'closedCases'
-                ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            結案
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('units')}
-            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'units'
-                ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            派案單位
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'staff'
-                ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            人員資訊
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>匯出 5 張月報表</span>
           </button>
         </div>
 
@@ -243,6 +257,13 @@ function AppContent() {
           {activeTab === 'staff' && <Staff />}
         </div>
       </div>
+
+      {/* 月報表匯出 Modal */}
+      <ReportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        cases={cases}
+      />
 
       {/* 底部宣告 */}
       <footer className="max-w-7xl mx-auto py-6 mt-8 text-center text-xs text-slate-400">
