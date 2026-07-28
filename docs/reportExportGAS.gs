@@ -50,14 +50,6 @@ function doPost(e) {
       if (sheet1Data.length > 0) {
         sheet1.getRange(8, 1, sheet1Data.length, sheet1Data[0].length).setValues(sheet1Data);
 
-        if (sheet1Data.length > 1) {
-          sheet1.getRange(8, 1, sheet1Data.length, 1).mergeVertically();
-          sheet1.getRange(8, 2, sheet1Data.length, 1).mergeVertically();
-          sheet1.getRange(8, 3, sheet1Data.length, 1).mergeVertically();
-          sheet1.getRange(8, 4, sheet1Data.length, 1).mergeVertically();
-          sheet1.getRange(8, 5, sheet1Data.length, 1).mergeVertically();
-        }
-
         for (let i = 0; i < sheet1Data.length; i++) {
           const bUnitName = String(sheet1Data[i][5] || '');
           if (bUnitName.includes('悠康')) {

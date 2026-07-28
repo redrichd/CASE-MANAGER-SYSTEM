@@ -81,25 +81,27 @@ export function buildSheet1Matrix(cases = [], aUnitName = "悠康事業有限公
   const cmsDispatches = cases.filter(c => c.dispatchType !== '當月自行發掘').length;
   const selfDispatches = cases.filter(c => c.dispatchType === '當月自行發掘').length;
 
+  const fmt = val => (val > 0 ? val : '');
+
   if (bUnits.length === 0) {
     return [[
       aUnitName, 1, totalCases, cmsDispatches, selfDispatches,
-      "無派案紀錄", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ""
+      "無派案紀錄", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
     ]];
   }
 
   return bUnits.map((b, index) => [
     index === 0 ? aUnitName : '',
-    index + 1,
+    index === 0 ? 1 : '',
     index === 0 ? totalCases : '',
     index === 0 ? cmsDispatches : '',
     index === 0 ? selfDispatches : '',
     b.name,
-    b.ba, b.bb, b.bc,
-    b.ca, b.cb, b.cc, b.cd,
-    b.transport,
-    b.homeRespite, b.dayRespite, b.instRespite,
-    b.smallScale, b.cStation, b.shortRespite,
+    fmt(b.ba), fmt(b.bb), fmt(b.bc),
+    fmt(b.ca), fmt(b.cb), fmt(b.cc), fmt(b.cd),
+    fmt(b.transport),
+    fmt(b.homeRespite), fmt(b.dayRespite), fmt(b.instRespite),
+    fmt(b.smallScale), fmt(b.cStation), fmt(b.shortRespite),
     b.remark
   ]);
 }
