@@ -200,11 +200,12 @@ export default function CaseForm({ activeCase, onClose }) {
       return;
     }
 
-    // 防呆：A單位照會服務單位日不可比照顧計劃審核通過日還要前面
-    if (recordCategory === 'dispatch' && aUnitNotifyDate && approvalDate) {
-      const notifyTime = new Date(aUnitNotifyDate).getTime();
-      const approvalTime = new Date(approvalDate).getTime();
-      if (!isNaN(notifyTime) && !isNaN(approvalTime) && notifyTime < approvalTime) {
+    // 防呆：A單位照會服務單位日不可比照顧計劃審核通過日還要前面 (依據日期 YYYY-MM-DD 比較，同一天視為合法)
+    const targetApprovalDate = submitDate || approvalDate;
+    if (recordCategory === 'dispatch' && aUnitNotifyDate && targetApprovalDate) {
+      const notifyDateStr = aUnitNotifyDate.split('T')[0];
+      const targetDateStr = targetApprovalDate.split('T')[0];
+      if (notifyDateStr < targetDateStr) {
         alert('「A單位照會服務單位日」不可早於「照顧計畫擬定完成日 (審核通過日)」！');
         return;
       }
@@ -1031,25 +1032,37 @@ export default function CaseForm({ activeCase, onClose }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                <label htmlFor="aUnitNotifyDate" className="block text-xs font-bold text-slate-650 mb-1.5">
                   A單位照會服務單位日
                 </label>
-                <input
-                  type="date"
-                  value={aUnitNotifyDate}
-                  onChange={(e) => setAUnitNotifyDate(e.target.value)}
-                  onPaste={handleDatePaste(setAUnitNotifyDate, 'date')}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
-                    aUnitNotifyDate && approvalDate && new Date(aUnitNotifyDate).getTime() < new Date(approvalDate).getTime()
-                      ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
-                      : 'border-slate-250 focus:ring-purple-500'
-                  }`}
-                />
-                {aUnitNotifyDate && approvalDate && new Date(aUnitNotifyDate).getTime() < new Date(approvalDate).getTime() && (
-                  <span className="text-[11px] font-bold text-rose-600 mt-1 block">
-                    ⚠️ 照會日不可早於審核通過日 ({approvalDate})
-                  </span>
-                )}
+                {(() => {
+                  const targetApprovalDate = submitDate || approvalDate;
+                  const targetDateStr = targetApprovalDate ? targetApprovalDate.split('T')[0] : '';
+                  const notifyDateStr = aUnitNotifyDate ? aUnitNotifyDate.split('T')[0] : '';
+                  const isNotifyDateInvalid = notifyDateStr && targetDateStr && notifyDateStr < targetDateStr;
+
+                  return (
+                    <>
+                      <input
+                        id="aUnitNotifyDate"
+                        type="date"
+                        value={aUnitNotifyDate}
+                        onChange={(e) => setAUnitNotifyDate(e.target.value)}
+                        onPaste={handleDatePaste(setAUnitNotifyDate, 'date')}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                          isNotifyDateInvalid
+                            ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
+                            : 'border-slate-250 focus:ring-purple-500'
+                        }`}
+                      />
+                      {isNotifyDateInvalid && (
+                        <span className="text-[11px] font-bold text-rose-600 mt-1 block">
+                          ⚠️ 照會日不可早於審核通過日 ({targetDateStr})
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) && (

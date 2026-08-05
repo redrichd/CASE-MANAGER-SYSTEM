@@ -63,4 +63,30 @@ describe('CaseForm Integration Test', () => {
 
     expect(approvalInput.value.startsWith('2026-05-04T19:33:15')).toBe(true);
   });
+
+  it('should allow aUnitNotifyDate on the same day as approvalDate/submitDate, and block only if earlier', async () => {
+    renderWithProviders(<CaseForm onClose={() => {}} />);
+    
+    const approvalInput = screen.getByLabelText(/計畫最初送審日/);
+    const submitInput = screen.getByLabelText(/照顧計劃審核通過日/);
+    const notifyInput = screen.getByLabelText(/A單位照會服務單位日/);
+
+    // Set approval date and submit date to 2026-07-06 with time components
+    await act(async () => {
+      fireEvent.change(approvalInput, { target: { value: '2026-07-06T10:04:33' } });
+      fireEvent.change(submitInput, { target: { value: '2026-07-06T11:10:15' } });
+    });
+
+    // 1. Same day: 2026-07-06 => Should be valid (no warning text)
+    await act(async () => {
+      fireEvent.change(notifyInput, { target: { value: '2026-07-06' } });
+    });
+    expect(screen.queryByText(/照會日不可早於審核通過日/)).not.toBeInTheDocument();
+
+    // 2. Earlier day: 2026-07-05 => Should trigger warning text
+    await act(async () => {
+      fireEvent.change(notifyInput, { target: { value: '2026-07-05' } });
+    });
+    expect(screen.getByText(/照會日不可早於審核通過日 \(2026-07-06\)/)).toBeInTheDocument();
+  });
 });
