@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
 import { useStaff } from '../contexts/StaffContext';
+import { useAuth } from '../contexts/AuthContext';
 import CaseForm from '../components/CaseForm';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { Search, UserPlus, Edit3, Archive, MapPin, Tag, ChevronDown, ChevronRight, Layers, Users, FileText } from 'lucide-react';
+import { Search, UserPlus, Edit3, Archive, MapPin, Tag, ChevronDown, ChevronRight, Layers, Users, FileText, Trash2 } from 'lucide-react';
 
 export default function ActiveCases() {
-  const { cases, closeCase } = useCases();
+  const { cases, closeCase, deleteCase } = useCases();
   const { staffList } = useStaff();
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedArea, setSelectedArea] = useState('全部');
   const [selectedServiceCode, setSelectedServiceCode] = useState('全部');
@@ -15,6 +17,7 @@ export default function ActiveCases() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [confirmCloseTarget, setConfirmCloseTarget] = useState(null);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null);
 
   // 獲取所有人員實際服務的區域以做動態篩選
   const staffAreas = Array.from(new Set(staffList.map((s) => s.area).filter(Boolean)));
@@ -89,6 +92,17 @@ export default function ActiveCases() {
     if (confirmCloseTarget) {
       closeCase(confirmCloseTarget);
       setConfirmCloseTarget(null);
+    }
+  };
+
+  const triggerDeleteCase = (target) => {
+    setConfirmDeleteTarget(target);
+  };
+
+  const confirmDelete = async () => {
+    if (confirmDeleteTarget) {
+      await deleteCase(confirmDeleteTarget);
+      setConfirmDeleteTarget(null);
     }
   };
 
@@ -355,17 +369,30 @@ export default function ActiveCases() {
                           {primaryItem.supervisor}
                         </td>
 
-                        {/* 結案按鈕 */}
+                        {/* 基本作業 */}
                         <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => triggerCloseCase(primaryItem)}
-                            aria-label="結案歸檔"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#1e293b] text-white text-xs font-bold rounded transition shadow-sm cursor-pointer"
-                            title="結案歸檔"
-                          >
-                            <Archive className="w-3.5 h-3.5" />
-                            結案
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {isAdmin && (
+                              <button
+                                onClick={() => triggerDeleteCase(primaryItem)}
+                                aria-label="刪除個案"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded transition shadow-sm cursor-pointer"
+                                title="刪除此個案紀錄"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                刪除
+                              </button>
+                            )}
+                            <button
+                              onClick={() => triggerCloseCase(primaryItem)}
+                              aria-label="結案歸檔"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#334155] hover:bg-[#1e293b] text-white text-xs font-bold rounded transition shadow-sm cursor-pointer"
+                              title="結案歸檔"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                              結案
+                            </button>
+                          </div>
                         </td>
                       </tr>
 
@@ -437,14 +464,27 @@ export default function ActiveCases() {
                             {subItem.supervisor}
                           </td>
                           <td className="px-6 py-2.5 text-center">
-                            <button
-                              onClick={() => triggerCloseCase(subItem)}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white text-[11px] font-bold rounded transition cursor-pointer"
-                              title={`將 ${subItem.serviceContent} 碼別單獨結案`}
-                            >
-                              <Archive className="w-3 h-3" />
-                              結案碼別
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              {isAdmin && (
+                                <button
+                                  onClick={() => triggerDeleteCase(subItem)}
+                                  aria-label="刪除碼別"
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded transition cursor-pointer"
+                                  title={`刪除 ${subItem.serviceContent} 碼別紀錄`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  刪除
+                                </button>
+                              )}
+                              <button
+                                onClick={() => triggerCloseCase(subItem)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-600 hover:bg-slate-700 text-white text-[11px] font-bold rounded transition cursor-pointer"
+                                title={`將 ${subItem.serviceContent} 碼別單獨結案`}
+                              >
+                                <Archive className="w-3 h-3" />
+                                結案碼別
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -473,6 +513,15 @@ export default function ActiveCases() {
         message="結案歸檔後個案將移至「已結案存檔」，您與其他使用者仍可隨時進行編輯與資料補全。確定要結案嗎？"
         onConfirm={confirmClose}
         onCancel={() => setConfirmCloseTarget(null)}
+      />
+
+      {/* 刪除確認框 */}
+      <ConfirmDialog
+        isOpen={confirmDeleteTarget !== null}
+        title="確認刪除個案紀錄？"
+        message={`確定要刪除個案「${confirmDeleteTarget?.name || ''}」（${confirmDeleteTarget?.serviceContent || ''}碼別）的資料嗎？此動作無法復原。`}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteTarget(null)}
       />
     </div>
   );
