@@ -171,5 +171,32 @@ describe('Units Page Integration Test', () => {
     expect(cells[6].textContent).toBe('0');
     expect(cells[7].textContent).toBe('0');
   });
+
+  it('should prompt confirmation modal when clicking delete and remove unit upon confirmation', async () => {
+    renderWithProviders(<Units />);
+
+    // Find U003 unit row
+    const unitRow = screen.getByText('ID: U003').closest('tr');
+    expect(screen.getByText('萬華社區關懷協會')).toBeInTheDocument();
+
+    // Click "刪除" button in U003 row
+    const deleteBtn = within(unitRow).getByRole('button', { name: '刪除' });
+    await act(async () => {
+      fireEvent.click(deleteBtn);
+    });
+
+    // Confirmation dialog should be visible
+    expect(screen.getByText('確認刪除單位')).toBeInTheDocument();
+    expect(screen.getByText(/確定要刪除單位「萬華社區關懷協會」嗎？/)).toBeInTheDocument();
+
+    // Click "確定" in the confirmation dialog
+    const confirmBtn = screen.getByRole('button', { name: '確定' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    // U003 unit should be removed from the DOM
+    expect(screen.queryByText('萬華社區關懷協會')).not.toBeInTheDocument();
+  });
 });
 

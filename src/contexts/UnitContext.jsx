@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useState, useContext, useEffect } from 'react';
 import { db, isFirebaseConfigured } from '../services/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 
 const UnitContext = createContext();
 
@@ -227,6 +227,20 @@ export function UnitProvider({ children }) {
     }
   };
 
+  const deleteUnit = async (id) => {
+    const updated = units.filter((u) => u.id !== id);
+    setUnits(updated);
+    localStorage.setItem('local_units', JSON.stringify(updated));
+
+    if (isFirebaseConfigured()) {
+      try {
+        await deleteDoc(doc(db, 'units', id));
+      } catch (error) {
+        console.error('Error deleting unit in Firestore:', error);
+      }
+    }
+  };
+
   return (
     <UnitContext.Provider
       value={{
@@ -235,6 +249,7 @@ export function UnitProvider({ children }) {
         toggleStopUnit,
         updateUnit,
         addUnit,
+        deleteUnit,
         addComment,
         updateComment,
       }}

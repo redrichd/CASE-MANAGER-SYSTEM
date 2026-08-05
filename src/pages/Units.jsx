@@ -3,9 +3,10 @@ import { useUnits } from '../contexts/UnitContext';
 import { useCases } from '../contexts/CaseContext';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
-import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3 } from 'lucide-react';
+import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2 } from 'lucide-react';
 import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const SERVICE_FILTERS = [
   { key: 'ALL', label: '全部' },
@@ -27,13 +28,14 @@ const SERVICE_FILTERS = [
 ];
 
 export default function Units() {
-  const { units, toggleStopUnit, addUnit, updateUnit } = useUnits();
+  const { units, toggleStopUnit, addUnit, updateUnit, deleteUnit } = useUnits();
   const { cases } = useCases();
   const { isAdmin } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
+  const [deletingUnit, setDeletingUnit] = useState(null);
 
   // 管理員編輯數據狀態
   const [adminEditingUnit, setAdminEditingUnit] = useState(null);
@@ -429,6 +431,15 @@ export default function Units() {
                               )}
                             </span>
                           )}
+
+                          <button
+                            onClick={() => setDeletingUnit(u)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-semibold hover:shadow-sm transition cursor-pointer"
+                            title="刪除單位"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            刪除
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -692,6 +703,20 @@ export default function Units() {
           </div>
         </div>
       )}
+
+      {/* 刪除確認彈窗 */}
+      <ConfirmDialog
+        isOpen={!!deletingUnit}
+        title="確認刪除單位"
+        message={`確定要刪除單位「${deletingUnit?.name}」嗎？此動作無法復原。`}
+        onConfirm={() => {
+          if (deletingUnit) {
+            deleteUnit(deletingUnit.id);
+            setDeletingUnit(null);
+          }
+        }}
+        onCancel={() => setDeletingUnit(null)}
+      />
 
     </div>
   );
