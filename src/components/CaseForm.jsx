@@ -91,6 +91,88 @@ export default function CaseForm({ activeCase, onClose }) {
     });
   };
 
+  // 檢視內轉率與輪序次數邏輯評估 (依據圖二與圖三)
+  const getDispatchEvaluation = (disp) => {
+    const isYukang = disp.bUnitName && disp.bUnitName.includes('悠康');
+    const isBaNewCase = recordCategory === 'dispatch' && 
+                        disp.serviceContent === 'BA' && 
+                        (!disp.dispatchType || ['新案_初評', '新案_出備', '自行發掘'].includes(disp.dispatchType));
+
+    // 1. 內轉率評估 (圖二)
+    let transferInResult = {
+      isScope: isBaNewCase,
+      isNumerator: false,
+      label: '分子 +0 (不計分子)',
+      bg: 'bg-slate-100 text-slate-700 border-slate-200',
+      reason: ''
+    };
+
+    if (!isBaNewCase) {
+      transferInResult.reason = '非 BA 新案範疇 (不影響內轉率分子)';
+      transferInResult.label = '非 BA 新案範疇';
+    } else if (isYukang && disp.dispatchResult === '服務提供') {
+      transferInResult.isNumerator = true;
+      transferInResult.label = '分子 +1 (計入內轉分子)';
+      transferInResult.bg = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+      transferInResult.reason = '自家第一時間接案，計入內轉分子 (提升內轉率)';
+    } else if (isYukang && disp.dispatchResult === '案主指定(本單位)') {
+      transferInResult.label = '分子 +0 (個案指定不計)';
+      transferInResult.bg = 'bg-amber-50 text-amber-800 border-amber-200';
+      transferInResult.reason = '個案指定悠康不計入內轉分子';
+    } else if (isYukang && ['服務提供(第二輪)', '出備已派案'].includes(disp.dispatchResult)) {
+      transferInResult.label = '分子 +0 (拉低內轉率)';
+      transferInResult.bg = 'bg-rose-50 text-rose-800 border-rose-200';
+      transferInResult.reason = '第一輪未接好 / 自家接出備案，不計分子 (拉低內轉率)';
+    } else {
+      transferInResult.label = '分子 +0 (外單位不計分子)';
+      transferInResult.bg = 'bg-slate-100 text-slate-700 border-slate-250';
+      transferInResult.reason = '外單位接案，不計入悠康內轉分子';
+    }
+
+    // 2. 輪序次數評估 (圖三)
+    let rotationResult = {
+      countChange: 0,
+      label: '輪序次數 +0',
+      bg: 'bg-slate-100 text-slate-700 border-slate-200',
+      reason: ''
+    };
+
+    const res = disp.dispatchResult;
+    if (res === '服務提供') {
+      rotationResult.countChange = 1;
+      rotationResult.label = '輪序次數 +1 (順位後移)';
+      rotationResult.bg = 'bg-blue-50 text-blue-800 border-blue-300';
+      rotationResult.reason = '第一輪成功派案，輪序次數 +1 (順序往後排)';
+    } else if (['逾時未回覆', '無人力', '單位因素無法接案'].includes(res)) {
+      rotationResult.countChange = 1;
+      rotationResult.label = '輪序次數 +1 (懲罰挑案條款)';
+      rotationResult.bg = 'bg-purple-50 text-purple-800 border-purple-300';
+      rotationResult.reason = '懲罰挑案條款：外單位挑案拒接/逾時，輪序次數照樣 +1 (往後排)';
+    } else if (!isYukang && ['服務提供(第二輪)', '出備已派案'].includes(res)) {
+      rotationResult.countChange = 0;
+      rotationResult.label = '輪序次數 +0 (被動救援保護)';
+      rotationResult.bg = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+      rotationResult.reason = '被動救援保護：外單位接悠康流出案/出備案，不增加輪序次數 (下次還能排前面)';
+    } else if (isYukang && ['服務提供(第二輪)', '出備已派案'].includes(res)) {
+      rotationResult.countChange = 1;
+      rotationResult.label = '輪序次數 +1';
+      rotationResult.bg = 'bg-blue-50 text-blue-800 border-blue-300';
+      rotationResult.reason = '自家悠康接案，輪序次數 +1';
+    } else if (['外單位自開案', '案主指定(本單位)'].includes(res)) {
+      rotationResult.countChange = 0;
+      rotationResult.label = '輪序次數 +0 (自開/指定案保護)';
+      rotationResult.bg = 'bg-amber-50 text-amber-800 border-amber-200';
+      rotationResult.reason = '個案指定或外單位自開案，不增加其輪序次數';
+    } else {
+      rotationResult.countChange = 0;
+      rotationResult.label = '輪序次數 +0';
+      rotationResult.bg = 'bg-slate-100 text-slate-700 border-slate-200';
+      rotationResult.reason = '未成功接案或取消，不計入輪序次數';
+    }
+
+    return { transferInResult, rotationResult };
+  };
+
   const handleAddDispatchItem = () => {
     setDispatches((prev) => [...prev, createDefaultDispatchItem()]);
   };
@@ -1177,6 +1259,53 @@ export default function CaseForm({ activeCase, onClose }) {
                       </div>
                     )}
                   </div>
+
+                  {/* 派案效能與輪序邏輯即時檢視卡片 (依據圖二與圖三) */}
+                  {disp.bUnitName && (
+                    (() => {
+                      const { transferInResult, rotationResult } = getDispatchEvaluation(disp);
+                      return (
+                        <div className="mt-4 p-3.5 bg-purple-50/50 border border-purple-200/80 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold text-purple-900 flex items-center gap-1.5">
+                              🔍 派案邏輯與輪序次數即時檢視 ({disp.bUnitName})
+                            </span>
+                            <span className="text-[11px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded-full">
+                              結果：{disp.dispatchResult || '未選擇'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            {/* 1. 內轉率分子檢視 */}
+                            <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${transferInResult.bg}`}>
+                              <div className="flex items-center justify-between font-bold mb-1">
+                                <span>1. 內轉率分子計算：</span>
+                                <span className="px-2 py-0.5 rounded text-[11px] bg-white/90 shadow-xs font-extrabold">
+                                  {transferInResult.label}
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-medium opacity-90 leading-tight mb-0">
+                                💡 {transferInResult.reason}
+                              </p>
+                            </div>
+
+                            {/* 2. 輪序次數檢視 */}
+                            <div className={`p-2.5 rounded-lg border flex flex-col justify-between ${rotationResult.bg}`}>
+                              <div className="flex items-center justify-between font-bold mb-1">
+                                <span>2. 輪序次數計算：</span>
+                                <span className="px-2 py-0.5 rounded text-[11px] bg-white/90 shadow-xs font-extrabold">
+                                  {rotationResult.label}
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-medium opacity-90 leading-tight mb-0">
+                                💡 {rotationResult.reason}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
                 </div>
 
                 {/* 四、單位回覆時效/異常追蹤 (依據圖一重排順序) */}
