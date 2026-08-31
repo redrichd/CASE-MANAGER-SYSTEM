@@ -43,48 +43,60 @@ export function calculateDeadline(startIsoString) {
 }
 
 /**
- * 計算照會時間與首次服務時間之間的工作天數，並判斷超過工作天數
- * @param {string} notifyIso 照會時間 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
- * @param {string} firstServiceIso 首次服務時間 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
- * @param {number} limitDays 規定工作天上限 (預設 3 個工作天)
- * @returns {{ overdueDays: number, isOverdue: boolean, workdaysTaken: number }}
+ * 計算服務單位回覆日與首次服務時間之間的工作天數，並判斷是否超過規定天數 (預設 4.5 個工作天)
+ * @param {string} startIso 起始時間 / 服務單位回覆日 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
+ * @param {string} endIso 結束時間 / 首次服務日期 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
+ * @param {number} limitDays 規定工作天上限 (預設 4.5 個工作天)
+ * @returns {{ overdueDays: number, isOverdue: boolean, workingDays: number }}
  */
-export function calculateWorkdayOverdueDays(notifyIso, firstServiceIso, limitDays = 3) {
-  if (!notifyIso || !firstServiceIso) {
-    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+export function calculateWorkdayOverdueDays(startIso, endIso, limitDays = 4.5) {
+  if (!startIso || !endIso) {
+    return { overdueDays: 0, isOverdue: false, workingDays: 0 };
   }
 
-  const notifyDate = new Date(notifyIso);
-  const firstServiceDate = new Date(firstServiceIso);
+  const startDate = new Date(startIso);
+  const endDate = new Date(endIso);
 
-  if (isNaN(notifyDate.getTime()) || isNaN(firstServiceDate.getTime())) {
-    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return { overdueDays: 0, isOverdue: false, workingDays: 0 };
   }
 
-  if (firstServiceDate <= notifyDate) {
-    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+  if (endDate <= startDate) {
+    return { overdueDays: 0, isOverdue: false, workingDays: 0 };
   }
 
-  const startDate = new Date(notifyDate);
-  startDate.setHours(0, 0, 0, 0);
+  const totalMs = endDate.getTime() - startDate.getTime();
 
-  const endDate = new Date(firstServiceDate);
-  endDate.setHours(0, 0, 0, 0);
-
-  let workdaysTaken = 0;
+  // 走訪每一天日曆天，計算非工作日（週末與國定假日）在該時間區間內的重疊毫秒數
+  let nonWorkingMs = 0;
   const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
 
-  // 跨天走訪，若當天為工作日則採計
-  while (current < endDate) {
-    current.setDate(current.getDate() + 1);
-    if (isWorkday(current)) {
-      workdaysTaken++;
+  const endDay = new Date(endDate);
+  endDay.setHours(0, 0, 0, 0);
+
+  while (current <= endDay) {
+    if (!isWorkday(current)) {
+      const dayStart = new Date(current).getTime();
+      const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+      const overlapStart = Math.max(startDate.getTime(), dayStart);
+      const overlapEnd = Math.min(endDate.getTime(), dayEnd);
+
+      if (overlapEnd > overlapStart) {
+        nonWorkingMs += (overlapEnd - overlapStart);
+      }
     }
+    current.setDate(current.getDate() + 1);
   }
 
-  const overdueDays = workdaysTaken > limitDays ? workdaysTaken - limitDays : 0;
-  const isOverdue = overdueDays > 0;
+  const workingMs = Math.max(0, totalMs - nonWorkingMs);
+  const rawWorkingDays = workingMs / (1000 * 60 * 60 * 24);
+  const workingDays = Math.round(rawWorkingDays * 10) / 10;
 
-  return { overdueDays, isOverdue, workdaysTaken };
+  const isOverdue = workingDays > limitDays;
+  const overdueDays = workingDays;
+
+  return { overdueDays, isOverdue, workingDays };
 }
 

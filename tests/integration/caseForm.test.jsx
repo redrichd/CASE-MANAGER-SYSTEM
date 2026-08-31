@@ -79,13 +79,13 @@ describe('CaseForm Integration Test', () => {
 
     // 1. Same day: 2026-07-06 => Should be valid (no warning text)
     await act(async () => {
-      fireEvent.change(notifyInput, { target: { value: '2026-07-06' } });
+      fireEvent.change(notifyInput, { target: { value: '2026-07-06T10:00' } });
     });
     expect(screen.queryByText(/照會日不可早於審核通過日/)).not.toBeInTheDocument();
 
     // 2. Earlier day: 2026-07-05 => Should trigger warning text
     await act(async () => {
-      fireEvent.change(notifyInput, { target: { value: '2026-07-05' } });
+      fireEvent.change(notifyInput, { target: { value: '2026-07-05T10:00' } });
     });
     expect(screen.getByText(/照會日不可早於審核通過日 \(2026-07-06\)/)).toBeInTheDocument();
   });

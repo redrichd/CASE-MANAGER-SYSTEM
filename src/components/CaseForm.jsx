@@ -67,12 +67,12 @@ export default function CaseForm({ activeCase, onClose }) {
       const next = [...prev];
       const currentItem = { ...next[index], [field]: value };
 
-      // 自動計算超過天數 (僅採計工作天，扣除例假日)
-      if (field === 'aUnitNotifyDate' || field === 'firstServiceDate') {
-        const notifyDate = field === 'aUnitNotifyDate' ? value : currentItem.aUnitNotifyDate;
+      // 自動計算超過天數 (依據服務單位回覆日與首次服務日期計算，扣除例假日與國定假日，超過 4.5 天提示異常)
+      if (field === 'bUnitReplyDate' || field === 'firstServiceDate') {
+        const bUnitReplyDate = field === 'bUnitReplyDate' ? value : currentItem.bUnitReplyDate;
         const firstServiceDate = field === 'firstServiceDate' ? value : currentItem.firstServiceDate;
-        if (notifyDate && firstServiceDate) {
-          const { overdueDays: calcDays } = calculateWorkdayOverdueDays(notifyDate, firstServiceDate);
+        if (bUnitReplyDate && firstServiceDate) {
+          const { overdueDays: calcDays } = calculateWorkdayOverdueDays(bUnitReplyDate, firstServiceDate, 4.5);
           currentItem.overdueDays = calcDays;
         }
       }
@@ -1123,10 +1123,11 @@ export default function CaseForm({ activeCase, onClose }) {
                           <>
                             <input
                               id={idx === 0 ? "aUnitNotifyDate" : `aUnitNotifyDate_${idx}`}
-                              type="date"
+                              type="datetime-local"
+                              step="1"
                               value={disp.aUnitNotifyDate}
                               onChange={(e) => handleUpdateDispatchItem(idx, 'aUnitNotifyDate', e.target.value)}
-                              onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'aUnitNotifyDate', val), 'date')}
+                              onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'aUnitNotifyDate', val), 'datetime-local')}
                               className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
                                 isNotifyDateInvalid
                                   ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
@@ -1173,17 +1174,18 @@ export default function CaseForm({ activeCase, onClose }) {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 第 1 順位：服務單位回復日期 (單位回覆日) */}
+                    {/* 第 1 順位：服務單位回復日期 (單位回覆日) - 改為 datetime-local */}
                     <div>
                       <label className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
                         <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">1</span>
                         服務單位回復日期 (單位回覆日)
                       </label>
                       <input
-                        type="date"
+                        type="datetime-local"
+                        step="1"
                         value={disp.bUnitReplyDate}
                         onChange={(e) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', e.target.value)}
-                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', val), 'date')}
+                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', val), 'datetime-local')}
                         className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
                       />
                     </div>
@@ -1243,19 +1245,20 @@ export default function CaseForm({ activeCase, onClose }) {
                       </label>
                       <input
                         type="number"
+                        step="0.1"
                         min="0"
                         value={disp.overdueDays}
                         onChange={(e) => handleUpdateDispatchItem(idx, 'overdueDays', e.target.value)}
                         placeholder="自動計算天數..."
                         className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 font-bold ${
-                          Number(disp.overdueDays) > 0
+                          Number(disp.overdueDays) > 4.5
                             ? 'border-rose-500 bg-rose-50 text-rose-600 focus:ring-rose-500'
                             : 'border-slate-250 bg-white text-slate-800 focus:ring-sky-500'
                         }`}
                       />
-                      {Number(disp.overdueDays) > 0 && (
+                      {Number(disp.overdueDays) > 4.5 && (
                         <span className="text-xs font-extrabold text-rose-600 mt-1 block animate-pulse">
-                          🚨 警告：已超過 {disp.overdueDays} 天進場 (扣除例假日計算)
+                          🚨 警告：已超過 4.5 天進場 (扣除例假日與國定假日計算，目前為 {disp.overdueDays} 天)
                         </span>
                       )}
                     </div>
