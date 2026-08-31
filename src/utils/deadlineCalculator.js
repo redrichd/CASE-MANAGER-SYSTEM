@@ -41,3 +41,50 @@ export function calculateDeadline(startIsoString) {
   
   return `${yyyy}-${mm}-${dd}T12:00`;
 }
+
+/**
+ * 計算照會時間與首次服務時間之間的工作天數，並判斷超過工作天數
+ * @param {string} notifyIso 照會時間 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
+ * @param {string} firstServiceIso 首次服務時間 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
+ * @param {number} limitDays 規定工作天上限 (預設 3 個工作天)
+ * @returns {{ overdueDays: number, isOverdue: boolean, workdaysTaken: number }}
+ */
+export function calculateWorkdayOverdueDays(notifyIso, firstServiceIso, limitDays = 3) {
+  if (!notifyIso || !firstServiceIso) {
+    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+  }
+
+  const notifyDate = new Date(notifyIso);
+  const firstServiceDate = new Date(firstServiceIso);
+
+  if (isNaN(notifyDate.getTime()) || isNaN(firstServiceDate.getTime())) {
+    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+  }
+
+  if (firstServiceDate <= notifyDate) {
+    return { overdueDays: 0, isOverdue: false, workdaysTaken: 0 };
+  }
+
+  const startDate = new Date(notifyDate);
+  startDate.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(firstServiceDate);
+  endDate.setHours(0, 0, 0, 0);
+
+  let workdaysTaken = 0;
+  const current = new Date(startDate);
+
+  // 跨天走訪，若當天為工作日則採計
+  while (current < endDate) {
+    current.setDate(current.getDate() + 1);
+    if (isWorkday(current)) {
+      workdaysTaken++;
+    }
+  }
+
+  const overdueDays = workdaysTaken > limitDays ? workdaysTaken - limitDays : 0;
+  const isOverdue = overdueDays > 0;
+
+  return { overdueDays, isOverdue, workdaysTaken };
+}
+

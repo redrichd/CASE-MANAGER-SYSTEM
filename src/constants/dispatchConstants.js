@@ -14,7 +14,7 @@ export const SERVICE_CONTENTS = [
   "BA09",
   "BB",
   "BC",
-  "C",
+  "BD",
   "CA",
   "CB",
   "CC",
@@ -30,3 +30,10 @@ export const SERVICE_CONTENTS = [
   "SC03",
   "轉介",
 ];
+
+export const SERVICE_AREAS = [
+  "新莊區",
+  "三蘆區",
+  "板中永區",
+];
+

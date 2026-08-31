@@ -6,12 +6,12 @@ import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } fr
 const UnitContext = createContext();
 
 const initialUnits = [
-  { id: 'U001', name: '大同居家照顧服務所', services: ['BA'], isStopped: false, comments: [] },
-  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'DA'], isStopped: false, comments: [] },
-  { id: 'U003', name: '萬華社區關懷協會', services: ['BA'], isStopped: false, comments: [] },
-  { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], isStopped: false, comments: [] },
-  { id: 'U005', name: '信義停派居家機構', services: ['BA', 'DA'], isStopped: true, comments: [] },
-  { id: 'U007', name: '悠康事業有限公司附設新北市私立悠康居家長照機構', services: ['BA', 'GA09', 'SC09'], isStopped: false, comments: [], rating: 3 },
+  { id: 'U001', name: '大同居家照顧服務所', services: ['BA'], serviceAreas: ['新莊區', '三蘆區', '板中永區'], isStopped: false, comments: [] },
+  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'DA'], serviceAreas: ['新莊區', '三蘆區'], isStopped: false, comments: [] },
+  { id: 'U003', name: '萬華社區關懷協會', services: ['BA'], serviceAreas: ['新莊區'], isStopped: false, comments: [] },
+  { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], serviceAreas: ['三蘆區', '板中永區'], isStopped: false, comments: [] },
+  { id: 'U005', name: '信義停派居家機構', services: ['BA', 'DA'], serviceAreas: ['板中永區'], isStopped: true, comments: [] },
+  { id: 'U007', name: '悠康事業有限公司附設新北市私立悠康居家長照機構', services: ['BA', 'GA09', 'SC09'], serviceAreas: ['新莊區', '三蘆區', '板中永區'], isStopped: false, comments: [], rating: 3 },
 ];
 
 export function UnitProvider({ children }) {
@@ -44,16 +44,24 @@ export function UnitProvider({ children }) {
           let hasMigration = false;
           for (const docSnapshot of querySnapshot.docs) {
             const data = docSnapshot.data();
+            let updatedUnit = { ...data };
+            let unitChanged = false;
+
             // 自動將資料庫中舊的 D 碼搬遷修正為 DA 碼，防止歷史數據殘留
             if (data.services && data.services.includes('D')) {
-              const updatedServices = data.services.map(s => s === 'D' ? 'DA' : s);
-              const updatedUnit = { ...data, services: updatedServices };
+              updatedUnit.services = data.services.map(s => s === 'D' ? 'DA' : s);
+              unitChanged = true;
+            }
+            if (!data.serviceAreas || !Array.isArray(data.serviceAreas)) {
+              updatedUnit.serviceAreas = ['新莊區', '三蘆區', '板中永區'];
+              unitChanged = true;
+            }
+
+            if (unitChanged) {
               batch.set(doc(db, 'units', data.id), updatedUnit);
               hasMigration = true;
-              fetchedUnits.push(updatedUnit);
-            } else {
-              fetchedUnits.push(data);
             }
+            fetchedUnits.push(updatedUnit);
           }
           if (hasMigration) {
             await batch.commit();
@@ -64,6 +72,7 @@ export function UnitProvider({ children }) {
           localStorage.setItem('local_units', JSON.stringify(fetchedUnits));
           localStorage.setItem('units_db_initialized', 'true');
         }
+
       } catch (error) {
         console.error('Error fetching/migrating units in Firestore:', error);
       }
@@ -165,6 +174,7 @@ export function UnitProvider({ children }) {
     const formattedUnit = {
       ...newUnit,
       id: newId,
+      serviceAreas: newUnit.serviceAreas || ['新莊區', '三蘆區', '板中永區'],
       isStopped: newUnit.isStopped || false,
       comments: newUnit.comments || [],
       rating: newUnit.rating || 0,

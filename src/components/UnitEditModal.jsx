@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { X, Save, Plus, Star } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
-import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
+import { SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 
 export default function UnitEditModal({ unit, isOpen, onClose }) {
   const { updateUnit, addComment } = useUnits();
   const [name, setName] = useState(unit?.name || '');
   const [services, setServices] = useState(unit?.services || []);
+  const [serviceAreas, setServiceAreas] = useState(unit?.serviceAreas || ['新莊區', '三蘆區', '板中永區']);
   const [isStopped, setIsStopped] = useState(unit?.isStopped || false);
   const [rating, setRating] = useState(unit?.rating || 0);
   const [author, setAuthor] = useState('');
@@ -18,8 +19,14 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
     );
   };
 
+  const handleAreaToggle = (area) => {
+    setServiceAreas((prev) =>
+      prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
+    );
+  };
+
   const handleSave = () => {
-    updateUnit(unit.id, { name, services, isStopped, rating });
+    updateUnit(unit.id, { name, services, serviceAreas, isStopped, rating });
     onClose();
   };
 
@@ -83,6 +90,26 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
                     className="rounded text-purple-650 focus:ring-purple-500"
                   />
                   {code}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* 服務區域 (複選) */}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+              服務區域 (複選)
+            </label>
+            <div className="flex flex-wrap gap-4 border border-slate-100 dark:border-slate-800 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-950">
+              {SERVICE_AREAS.map((areaName) => (
+                <label key={areaName} className="flex items-center gap-1.5 text-sm cursor-pointer select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={serviceAreas.includes(areaName)}
+                    onChange={() => handleAreaToggle(areaName)}
+                    className="rounded text-purple-650 focus:ring-purple-500"
+                  />
+                  {areaName}
                 </label>
               ))}
             </div>

@@ -4,7 +4,7 @@ import { useCases } from '../contexts/CaseContext';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2 } from 'lucide-react';
-import { SERVICE_CONTENTS } from '../constants/dispatchConstants';
+import { SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -48,13 +48,15 @@ export default function Units() {
   // 新單位表單狀態
   const [newName, setNewName] = useState('');
   const [newServices, setNewServices] = useState(['BA']);
+  const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三蘆區', '板中永區']);
   const [newIsStopped, setNewIsStopped] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newAuthor, setNewAuthor] = useState('');
   const [newComment, setNewComment] = useState('');
 
-  // 篩選服務內容狀態
+  // 篩選狀態
   const [selectedServiceFilter, setSelectedServiceFilter] = useState('ALL');
+  const [selectedAreaFilter, setSelectedAreaFilter] = useState('ALL');
 
   // 根據選擇的服務類別來過濾 cases 作為統計底數
   const getFilteredCasesForStats = () => {
@@ -86,8 +88,13 @@ export default function Units() {
   const filteredCasesForStats = getFilteredCasesForStats();
   const statsUnits = calculateUnitStats(units, filteredCasesForStats);
 
-  // 2. 根據選擇的服務類別，過濾掉不提供該服務的單位 (當選擇全部時不進行過濾)
+  // 2. 根據選擇的區域與服務類別，過濾單位
   const serviceFilteredUnits = statsUnits.filter((u) => {
+    if (selectedAreaFilter !== 'ALL') {
+      if (!u.serviceAreas || !u.serviceAreas.includes(selectedAreaFilter)) {
+        return false;
+      }
+    }
     if (selectedServiceFilter === 'ALL') return true;
     if (selectedServiceFilter === 'GA03_04') {
       return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
@@ -122,6 +129,7 @@ export default function Units() {
     addUnit({
       name: newName,
       services: newServices,
+      serviceAreas: newServiceAreas,
       isStopped: newIsStopped,
       rating: newRating,
       comments: initialComments,
@@ -130,6 +138,7 @@ export default function Units() {
     // 重設狀態
     setNewName('');
     setNewServices(['BA']);
+    setNewServiceAreas(['新莊區', '三蘆區', '板中永區']);
     setNewIsStopped(false);
     setNewRating(0);
     setNewAuthor('');
@@ -234,30 +243,71 @@ export default function Units() {
         </div>
       </div>
 
-      {/* 服務類別統計標籤 */}
-      <div className="bg-[#f8fafc] border border-slate-200 rounded-2xl p-4">
-        <div className="text-xs font-bold text-slate-500 mb-2.5 flex items-center gap-1.5">
-          <span>統計服務類別篩選：</span>
-          <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">切換後僅統計該服務的數據且僅顯示提供該服務的單位</span>
+      {/* 服務類別與區域篩選標籤 */}
+      <div className="bg-[#f8fafc] border border-slate-200 rounded-2xl p-4 space-y-4">
+        {/* 區域篩選 */}
+        <div>
+          <div className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+            <span>📍 服務區域篩選：</span>
+            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">過濾有服務該區域之單位</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedAreaFilter('ALL')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
+                selectedAreaFilter === 'ALL'
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/10'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              全部區域
+            </button>
+            {SERVICE_AREAS.map((areaName) => {
+              const isActive = selectedAreaFilter === areaName;
+              return (
+                <button
+                  key={areaName}
+                  type="button"
+                  onClick={() => setSelectedAreaFilter(areaName)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
+                    isActive
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/10'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  {areaName}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {SERVICE_FILTERS.map((f) => {
-            const isActive = selectedServiceFilter === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setSelectedServiceFilter(f.key)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
-                  isActive
-                    ? 'bg-purple-600 border-purple-600 text-white shadow-purple-600/10'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-                }`}
-              >
-                {f.label}
-              </button>
-            );
-          })}
+
+        {/* 碼別篩選 */}
+        <div>
+          <div className="text-xs font-bold text-slate-500 mb-2.5 flex items-center gap-1.5">
+            <span>🏷️ 統計服務類別篩選：</span>
+            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">切換後僅統計該服務的數據且僅顯示提供該服務的單位</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SERVICE_FILTERS.map((f) => {
+              const isActive = selectedServiceFilter === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setSelectedServiceFilter(f.key)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
+                    isActive
+                      ? 'bg-purple-600 border-purple-600 text-white shadow-purple-600/10'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -494,6 +544,29 @@ export default function Units() {
                         className="rounded text-purple-650 focus:ring-purple-500"
                       />
                       {code}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  服務區域 (複選)
+                </label>
+                <div className="flex flex-wrap gap-4 border border-slate-100 p-3 rounded-xl bg-slate-50/50">
+                  {SERVICE_AREAS.map((areaName) => (
+                    <label key={areaName} className="flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={newServiceAreas.includes(areaName)}
+                        onChange={() => {
+                          setNewServiceAreas((prev) =>
+                            prev.includes(areaName) ? prev.filter((a) => a !== areaName) : [...prev, areaName]
+                          );
+                        }}
+                        className="rounded text-purple-650 focus:ring-purple-500"
+                      />
+                      {areaName}
                     </label>
                   ))}
                 </div>

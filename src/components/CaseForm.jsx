@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { useCases } from '../contexts/CaseContext';
 import { useUnits } from '../contexts/UnitContext';
 import { useStaff } from '../contexts/StaffContext';
-import { calculateDeadline } from '../utils/deadlineCalculator';
+import { calculateDeadline, calculateWorkdayOverdueDays } from '../utils/deadlineCalculator';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
 import { generateDispatchMessage } from '../services/aiService';
 import ConfirmDialog from './ConfirmDialog';
-import { Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus, Star } from 'lucide-react';
+import { Copy, Calendar, AlertTriangle, Check, X, Save, UserPlus, Star, Plus, Trash2 } from 'lucide-react';
 import { parsePastedDateTime } from '../utils/dateTimeParser';
 import UnitEditModal from './UnitEditModal';
-import { DISPATCH_TYPES, SERVICE_CONTENTS } from '../constants/dispatchConstants';
+import { DISPATCH_TYPES, SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 
 export default function CaseForm({ activeCase, onClose }) {
   const { cases, addCase, updateCase } = useCases();
@@ -25,27 +25,7 @@ export default function CaseForm({ activeCase, onClose }) {
   const [superApprovalDate, setSuperApprovalDate] = useState(activeCase?.superApprovalDate || '');
   const [approvalDate, setApprovalDate] = useState(activeCase?.approvalDate || '');
   const [submitDate, setSubmitDate] = useState(activeCase?.submitDate || '');
-  const [dispatchType, setDispatchType] = useState(activeCase?.dispatchType || '新案_初評');
-  const [serviceContent, setServiceContent] = useState(activeCase?.serviceContent || 'BA');
-  const [bUnitName, setBUnitName] = useState(activeCase?.bUnitName || '');
-  const initialDispatchResult = activeCase?.dispatchResult === '案主指定(外單位)' ? '外單位自開案' : (activeCase?.dispatchResult || '');
-  const [dispatchResult, setDispatchResult] = useState(initialDispatchResult);
-  const [secondRoundReason, setSecondRoundReason] = useState(activeCase?.secondRoundReason || '');
   const [delayReason, setDelayReason] = useState(activeCase?.delayReason || '');
-  const [isUnitCounseling, setIsUnitCounseling] = useState(activeCase?.isUnitCounseling || false);
-  const [aUnitNotifyDate, setAUnitNotifyDate] = useState(activeCase?.aUnitNotifyDate || '');
-  const [bUnitStartDate, setBUnitStartDate] = useState(activeCase?.bUnitStartDate || '');
-  const [bUnitReplyDate, setBUnitReplyDate] = useState(activeCase?.bUnitReplyDate || '');
-  const [firstServiceDate, setFirstServiceDate] = useState(activeCase?.firstServiceDate || '');
-  const [overdueDays, setOverdueDays] = useState(
-    activeCase?.overdueDays !== undefined && activeCase?.overdueDays !== null
-      ? activeCase.overdueDays
-      : ''
-  );
-  const [anomalyReasonType, setAnomalyReasonType] = useState(activeCase?.anomalyReasonType || '');
-  const [anomalyDate, setAnomalyDate] = useState(activeCase?.anomalyDate || '');
-  const [anomalyCategory, setAnomalyCategory] = useState(activeCase?.anomalyCategory || '');
-  const [anomalySummary, setAnomalySummary] = useState(activeCase?.anomalySummary || '');
   const [followUpStatus, setFollowUpStatus] = useState(activeCase?.followUpStatus || '');
   const [otherNote, setOtherNote] = useState(activeCase?.otherNote || '');
   const [remarks, setRemarks] = useState(activeCase?.remarks || '');
@@ -54,12 +34,69 @@ export default function CaseForm({ activeCase, onClose }) {
   const [referralReplyDate, setReferralReplyDate] = useState(activeCase?.referralReplyDate || '');
   const [hasReferralForm, setHasReferralForm] = useState(activeCase?.hasReferralForm ?? true);
   const [isCMSRecorded, setIsCMSRecorded] = useState(activeCase?.isCMSRecorded ?? true);
+
+  // 方案 A: 支援同個案多派案碼別 (dispatches 陣列)
+  const createDefaultDispatchItem = (base = {}) => ({
+    dispatchType: base.dispatchType || '新案_初評',
+    serviceContent: base.serviceContent || 'BA',
+    bUnitName: base.bUnitName || '',
+    bUnitSearchTerm: base.bUnitName || '',
+    isBUnitDropdownOpen: false,
+    dispatchResult: base.dispatchResult === '案主指定(外單位)' ? '外單位自開案' : (base.dispatchResult || ''),
+    secondRoundReason: base.secondRoundReason || '',
+    aUnitNotifyDate: base.aUnitNotifyDate || '',
+    bUnitStartDate: base.bUnitStartDate || '',
+    bUnitReplyDate: base.bUnitReplyDate || '',
+    firstServiceDate: base.firstServiceDate || '',
+    overdueDays: base.overdueDays !== undefined && base.overdueDays !== null ? base.overdueDays : '',
+    anomalyReasonType: base.anomalyReasonType || '',
+    anomalyDate: base.anomalyDate || '',
+    anomalyCategory: base.anomalyCategory || '',
+    anomalySummary: base.anomalySummary || '',
+    isUnitCounseling: base.isUnitCounseling || false,
+  });
+
+  const initialDispatches = (activeCase?.dispatches && activeCase.dispatches.length > 0)
+    ? activeCase.dispatches.map(createDefaultDispatchItem)
+    : [createDefaultDispatchItem(activeCase || {})];
+
+  const [dispatches, setDispatches] = useState(initialDispatches);
+
+  const handleUpdateDispatchItem = (index, field, value) => {
+    setDispatches((prev) => {
+      const next = [...prev];
+      const currentItem = { ...next[index], [field]: value };
+
+      // 自動計算超過天數 (僅採計工作天，扣除例假日)
+      if (field === 'aUnitNotifyDate' || field === 'firstServiceDate') {
+        const notifyDate = field === 'aUnitNotifyDate' ? value : currentItem.aUnitNotifyDate;
+        const firstServiceDate = field === 'firstServiceDate' ? value : currentItem.firstServiceDate;
+        if (notifyDate && firstServiceDate) {
+          const { overdueDays: calcDays } = calculateWorkdayOverdueDays(notifyDate, firstServiceDate);
+          currentItem.overdueDays = calcDays;
+        }
+      }
+
+      next[index] = currentItem;
+      return next;
+    });
+  };
+
+  const handleAddDispatchItem = () => {
+    setDispatches((prev) => [...prev, createDefaultDispatchItem()]);
+  };
+
+  const handleRemoveDispatchItem = (index) => {
+    if (dispatches.length <= 1) return;
+    setDispatches((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // 紀錄性質切換狀態：'dispatch' (一般派案紀錄) vs 'referral' (轉介服務紀錄)
   const initialCategory = activeCase?.recordCategory || (activeCase?.referralType ? 'referral' : 'dispatch');
   const [recordCategory, setRecordCategory] = useState(initialCategory);
 
   // 轉介服務專屬欄位狀態
-  const [referralType, setReferralType] = useState(activeCase?.referralType || '其他長照服務連結'); // '其他長照服務連結' | '轉介醫事C巷弄長照站連結'
+  const [referralType, setReferralType] = useState(activeCase?.referralType || '其他長照服務連結');
   const [referralUnitName, setReferralUnitName] = useState(activeCase?.referralUnitName || '');
   const [referralReason, setReferralReason] = useState(activeCase?.referralReason || '');
   const [referralFollowUp, setReferralFollowUp] = useState(activeCase?.referralFollowUp || '');
@@ -74,10 +111,6 @@ export default function CaseForm({ activeCase, onClose }) {
     initialStaffObj ? `${initialStaffObj.name} (${initialStaffObj.empId})` : activeCase?.supervisor || ''
   );
   const [isSupervisorDropdownOpen, setIsSupervisorDropdownOpen] = useState(false);
-  
-  // B 單位打字搜尋狀態
-  const [bUnitSearchTerm, setBUnitSearchTerm] = useState(activeCase?.bUnitName || '');
-  const [isBUnitDropdownOpen, setIsBUnitDropdownOpen] = useState(false);
   
   // UI 狀態
   const [copySuccess, setCopySuccess] = useState(false);
@@ -112,40 +145,38 @@ export default function CaseForm({ activeCase, onClose }) {
 
 
 
-  // 計算與排序 B 單位下拉選單 (過濾服務項目並隱藏停派單位)
+  // 計算與排序指派單位 (依個案區域 area 過濾並隱藏停派單位)
   const statsUnits = calculateUnitStats(units, cases);
-  const filteredSortedUnits = sortUnits(statsUnits).filter(
-    (u) => u.services && u.services.includes(serviceContent) && !u.isStopped
-  );
-
-  // 過濾搜尋 B 單位選項
-  const filteredBUnits = filteredSortedUnits.filter((u) => {
-    return u.name.toLowerCase().includes(bUnitSearchTerm.toLowerCase());
+  const sortedStatsUnits = sortUnits(statsUnits);
+  const filteredSortedUnits = sortedStatsUnits.filter((u) => {
+    if (u.isStopped) return false;
+    if (area) {
+      if (!u.serviceAreas || !u.serviceAreas.includes(area)) {
+        return false;
+      }
+    }
+    return true;
   });
 
-  // 獨立計算「目前選擇碼別」的輪序表 (派案次數越少越前面，不硬性置頂三星或特定單位)
   const YUKANG_NAME = "悠康事業有限公司附設新北市私立悠康居家長照機構";
+
+  const currentServiceContent = dispatches[0]?.serviceContent || 'BA';
   const fairRotationUnits = [...filteredSortedUnits].map(u => {
     const codeCount = cases.filter(c => {
-      if (c.bUnitName !== u.name || c.serviceContent !== serviceContent) {
+      if (c.bUnitName !== u.name || c.serviceContent !== currentServiceContent) {
         return false;
       }
       const result = c.dispatchResult;
       const isYukang = c.bUnitName === YUKANG_NAME;
-      
-      // 服務提供
       if (result === '服務提供') return true;
-      // 第二輪與出備已派案 (悠康計輪派，外單位被動救援保護不計輪派)
       if (result === '服務提供(第二輪)' || result === '出備已派案') return isYukang;
-      // 懲罰挑案條款：逾時未回覆、無人力、單位因素無法接案 -> 照樣計輪派 (+1)
       if (result === '逾時未回覆' || result === '無人力' || result === '單位因素無法接案') return true;
-      
       return false;
     }).length;
     return { ...u, codeDispatchCount: codeCount };
   }).sort((a, b) => {
     if (a.codeDispatchCount !== b.codeDispatchCount) {
-      return a.codeDispatchCount - b.codeDispatchCount; // 派案次數少的優先 (沒派過的在最前面)
+      return a.codeDispatchCount - b.codeDispatchCount;
     }
     const ratingA = a.rating || 0;
     const ratingB = b.rating || 0;
@@ -154,17 +185,19 @@ export default function CaseForm({ activeCase, onClose }) {
     }
     return a.id.localeCompare(b.id);
   });
+
   // 一鍵生成並複製派案交接短訊
   const handleCopyMessage = async () => {
+    const firstDisp = dispatches[0] || {};
     const caseData = {
       id,
       name,
       gender,
       supervisor,
-      serviceContent,
-      bUnitName,
-      aUnitNotifyDate,
-      bUnitStartDate,
+      serviceContent: firstDisp.serviceContent,
+      bUnitName: firstDisp.bUnitName,
+      aUnitNotifyDate: firstDisp.aUnitNotifyDate,
+      bUnitStartDate: firstDisp.bUnitStartDate,
     };
     try {
       const message = await generateDispatchMessage(caseData);
@@ -188,7 +221,7 @@ export default function CaseForm({ activeCase, onClose }) {
     !staffList.some(s => s.name === originalSupervisor) && 
     originalSupervisor.toLowerCase().includes(supervisorSearchTerm.toLowerCase());
 
-  // 儲存個案 (支援 forceSave 參數防止 React 閉包狀態非同步更新延遲)
+  // 儲存個案
   const handleSave = (e, forceSave = false) => {
     if (e && typeof e.preventDefault === 'function') e.preventDefault();
 
@@ -203,52 +236,64 @@ export default function CaseForm({ activeCase, onClose }) {
       return;
     }
 
-    // 防呆：A單位照會服務單位日不可比照顧計劃審核通過日還要前面 (依據日期 YYYY-MM-DD 比較，同一天視為合法)
-    const targetApprovalDate = submitDate || approvalDate;
-    if (recordCategory === 'dispatch' && aUnitNotifyDate && targetApprovalDate) {
-      const notifyDateStr = aUnitNotifyDate.split('T')[0];
-      const targetDateStr = targetApprovalDate.split('T')[0];
-      if (notifyDateStr < targetDateStr) {
-        alert('「A單位照會服務單位日」不可早於「照顧計畫擬定完成日 (審核通過日)」！');
-        return;
+    if (recordCategory === 'dispatch') {
+      const targetApprovalDate = submitDate || approvalDate;
+      const reasonRequiredResults = ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'];
+
+      for (let i = 0; i < dispatches.length; i++) {
+        const disp = dispatches[i];
+        if (disp.aUnitNotifyDate && targetApprovalDate) {
+          const notifyDateStr = disp.aUnitNotifyDate.split('T')[0];
+          const targetDateStr = targetApprovalDate.split('T')[0];
+          if (notifyDateStr < targetDateStr) {
+            alert(`第 ${i + 1} 筆碼別的「A單位照會服務單位日」不可早於「照顧計畫擬定完成日 (審核通過日)」！`);
+            return;
+          }
+        }
+        if (reasonRequiredResults.includes(disp.dispatchResult) && !disp.secondRoundReason.trim()) {
+          alert(`第 ${i + 1} 筆碼別派案結果為「${disp.dispatchResult}」，必須填寫原因/備註！`);
+          return;
+        }
+      }
+
+      if (!forceSave) {
+        for (const disp of dispatches) {
+          if (disp.bUnitName) {
+            const hasRecent = cases.some(c => {
+              if (c.id === id) return false;
+              if (c.bUnitName === disp.bUnitName && (c.dispatchResult === '服務提供' || c.dispatchResult === '服務提供(第二輪)' || !c.dispatchResult)) {
+                return true;
+              }
+              return false;
+            });
+            if (hasRecent) {
+              setWarningMsg(`該單位「${disp.bUnitName}」近期已有成功派案紀錄，確定要再次派給此單位嗎？`);
+              setShowWarning(true);
+              return;
+            }
+          }
+        }
       }
     }
 
-    // 防呆：派案結果為「服務提供(第二輪)」、「逾時未回覆」、「無人力」、「單位因素無法接案」時，必須填寫說明原因
-    const reasonRequiredResults = ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'];
-    if (reasonRequiredResults.includes(dispatchResult) && !secondRoundReason.trim()) {
-      alert(`派案結果為「${dispatchResult}」，必須填寫原因/備註！`);
-      return;
-    }
-
-    // 檢查違規停派確認
-    if (bUnitName && dispatchResult === '違規停派' && !pendingSave && !forceSave) {
-      setWarningMsg(
-        `是否確定要將「${bUnitName}」設為違規停派？確認後，該單位的狀態將會自動變更為停派中，並且違規停派次數將會加 1。`
-      );
-      setShowWarning(true);
-      return;
-    }
-
-    // 檢查近期重複派案攔截 (單位是否有成功派案紀錄)
-    if (bUnitName && !pendingSave && !forceSave) {
-      const successResults = new Set(['服務提供', '服務提供(第二輪)', '出備已派案']);
-      const duplicateCase = cases.find(
-        (c) =>
-          c.id !== (activeCase?.id) &&
-          c.bUnitName === bUnitName &&
-          successResults.has(c.dispatchResult)
-      );
-
-      if (duplicateCase) {
-        const lastDate = duplicateCase.submitDate || duplicateCase.date;
-        setWarningMsg(
-          `該單位「${bUnitName}」近期已有成功派案紀錄（上次派案日期：${lastDate.replace('T', ' ')}，案號：${duplicateCase.id}），確定要再次派給此單位嗎？`
-        );
-        setShowWarning(true);
-        return;
+    // 違規停派處理
+    if (recordCategory === 'dispatch') {
+      for (const disp of dispatches) {
+        if (disp.bUnitName && disp.dispatchResult === '違規停派') {
+          const targetUnit = units.find(u => u.name === disp.bUnitName);
+          if (targetUnit) {
+            const currentCaseStops = cases.filter(c => c.bUnitName === targetUnit.name && c.dispatchResult === '違規停派').length;
+            const currentStopCount = typeof targetUnit.stopCount === 'number' ? targetUnit.stopCount : currentCaseStops;
+            updateUnit(targetUnit.id, { 
+              isStopped: true,
+              stopCount: currentStopCount + 1
+            });
+          }
+        }
       }
     }
+
+    const firstDisp = dispatches[0] || {};
 
     // 準備儲存資料
     const savedData = {
@@ -279,27 +324,28 @@ export default function CaseForm({ activeCase, onClose }) {
             status: '已轉介',
           }
         : {
+            dispatches, // 方案 A: 多碼別派案紀錄清單
             superApprovalDate,
             approvalDate,
             deadlineDate,
             submitDate,
             status: isOvertime ? '超時效' : '時效內',
             delayReason: isOvertime ? delayReason : '',
-            dispatchType,
-            serviceContent,
-            bUnitName,
-            dispatchResult,
-            secondRoundReason: ['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) ? secondRoundReason : '',
-            isUnitCounseling,
-            aUnitNotifyDate,
-            bUnitStartDate,
-            bUnitReplyDate,
-            firstServiceDate,
-            overdueDays,
-            anomalyReasonType,
-            anomalyDate,
-            anomalyCategory,
-            anomalySummary,
+            dispatchType: firstDisp.dispatchType,
+            serviceContent: firstDisp.serviceContent,
+            bUnitName: firstDisp.bUnitName,
+            dispatchResult: firstDisp.dispatchResult,
+            secondRoundReason: firstDisp.secondRoundReason,
+            isUnitCounseling: firstDisp.isUnitCounseling,
+            aUnitNotifyDate: firstDisp.aUnitNotifyDate,
+            bUnitStartDate: firstDisp.bUnitStartDate,
+            bUnitReplyDate: firstDisp.bUnitReplyDate,
+            firstServiceDate: firstDisp.firstServiceDate,
+            overdueDays: firstDisp.overdueDays,
+            anomalyReasonType: firstDisp.anomalyReasonType,
+            anomalyDate: firstDisp.anomalyDate,
+            anomalyCategory: firstDisp.anomalyCategory,
+            anomalySummary: firstDisp.anomalySummary,
             followUpStatus,
             otherNote,
             remarks,
@@ -880,441 +926,432 @@ export default function CaseForm({ activeCase, onClose }) {
             )}
           </div>
 
-          {/* 三、派案類別 */}
-          <div>
-            <div className="bg-[#f3e8ff] border-l-4 border-purple-500 px-4 py-1.5 rounded-r-lg mb-4">
-              <h3 className="text-sm font-bold text-purple-900 m-0">
-                三、派案類別
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  派案類別
-                </label>
-                <select
-                  value={dispatchType}
-                  onChange={(e) => setDispatchType(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  {DISPATCH_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
+          {/* 方案 A: 支援動態新增多組派案碼別與異常追蹤 */}
+          {dispatches.map((disp, idx) => {
+            const availableUnits = filteredSortedUnits.filter(u => {
+              if (disp.serviceContent === 'GA03_04') {
+                return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
+              }
+              return u.services && u.services.includes(disp.serviceContent);
+            });
+            const filteredBUnits = availableUnits.filter(u =>
+              u.name.toLowerCase().includes((disp.bUnitSearchTerm || '').toLowerCase())
+            );
 
-              <div>
-                 <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                   服務內容
-                 </label>
-                 <select
-                   value={serviceContent}
-                   onChange={(e) => {
-                     setServiceContent(e.target.value);
-                     setBUnitName('');
-                     setBUnitSearchTerm('');
-                   }}
-                   className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                 >
-                   {SERVICE_CONTENTS.map((sc) => (
-                     <option key={sc} value={sc}>{sc}</option>
-                   ))}
-                 </select>
-              </div>
+            return (
+              <div key={idx} className="space-y-6 border-t-2 border-purple-200/60 pt-6 first:border-t-0 first:pt-0">
+                {/* 三、派案類別 */}
+                <div>
+                  <div className="bg-[#f3e8ff] border-l-4 border-purple-500 px-4 py-2 rounded-r-lg mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-purple-900 m-0">
+                      三、派案類別 {dispatches.length > 1 ? `(第 ${idx + 1} 碼別)` : ''}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {idx === 0 && (
+                        <button
+                          type="button"
+                          onClick={handleAddDispatchItem}
+                          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow-sm flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          新增派案類別 / 碼別
+                        </button>
+                      )}
+                      {dispatches.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDispatchItem(idx)}
+                          className="px-2.5 py-1 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          刪除此碼別
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-              <div>
-                <div className="flex justify-between items-end mb-1.5">
-                  <label htmlFor="bUnitName" className="block text-xs font-bold text-slate-650">
-                    指派 B 單位
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsUnitListOpen(true)}
-                    className="text-[10px] text-purple-600 font-bold hover:underline focus:outline-none cursor-pointer"
-                  >
-                    查看單位輪序表
-                  </button>
-                </div>
-                <div className="flex gap-2 items-center">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      id="bUnitName"
-                      autoComplete="off"
-                      value={bUnitSearchTerm}
-                      onFocus={() => setIsBUnitDropdownOpen(true)}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setBUnitSearchTerm(val);
-                        setIsBUnitDropdownOpen(true);
-                        
-                        const matchedUnit = filteredSortedUnits.find(u => u.name === val);
-                        if (matchedUnit) {
-                          setBUnitName(matchedUnit.name);
-                        } else {
-                          setBUnitName('');
-                        }
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          setIsBUnitDropdownOpen(false);
-                          if (bUnitName) {
-                            setBUnitSearchTerm(bUnitName);
-                          } else {
-                            setBUnitSearchTerm('');
-                          }
-                        }, 200);
-                      }}
-                      className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-sm"
-                      placeholder="輸入關鍵字以搜尋 B 單位..."
-                    />
-                    {isBUnitDropdownOpen && (
-                      <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
-                        {filteredBUnits.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-slate-400 italic">
-                            查無此單位
-                          </div>
-                        ) : (
-                          filteredBUnits.map((u) => {
-                            const statusText = u.rating > 0 ? ` (⭐ ${u.rating}星)` : ' (無評分)';
-                            return (
-                              <div
-                                key={u.id}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setBUnitName(u.name);
-                                  setBUnitSearchTerm(u.name);
-                                  setIsBUnitDropdownOpen(false);
-                                }}
-                                className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-700 font-medium flex items-center justify-between"
-                              >
-                                <span>{u.name}</span>
-                                <span className="text-xs text-amber-500 font-bold shrink-0 ml-2">
-                                  {statusText}
-                                </span>
-                              </div>
-                            );
-                          })
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 派案類別 */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        派案類別
+                      </label>
+                      <select
+                        value={disp.dispatchType}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'dispatchType', e.target.value)}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      >
+                        {DISPATCH_TYPES.map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 服務內容 */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        服務內容
+                      </label>
+                      <select
+                        value={disp.serviceContent}
+                        onChange={(e) => {
+                          handleUpdateDispatchItem(idx, 'serviceContent', e.target.value);
+                          handleUpdateDispatchItem(idx, 'bUnitName', '');
+                          handleUpdateDispatchItem(idx, 'bUnitSearchTerm', '');
+                        }}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      >
+                        {SERVICE_CONTENTS.map((sc) => (
+                          <option key={sc} value={sc}>{sc}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 指派單位 (改名指派單位，並根據區域過濾) */}
+                    <div>
+                      <div className="flex justify-between items-end mb-1.5">
+                        <label htmlFor={idx === 0 ? "bUnitName" : `bUnitName_${idx}`} className="block text-xs font-bold text-slate-650">
+                          指派單位 <span className="sr-only">指派 B 單位</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsUnitListOpen(true)}
+                          className="text-[10px] text-purple-600 font-bold hover:underline focus:outline-none cursor-pointer"
+                        >
+                          查看單位輪序表
+                        </button>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            id={idx === 0 ? "bUnitName" : `bUnitName_${idx}`}
+                            autoComplete="off"
+                            value={disp.bUnitSearchTerm}
+                            onFocus={() => handleUpdateDispatchItem(idx, 'isBUnitDropdownOpen', true)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleUpdateDispatchItem(idx, 'bUnitSearchTerm', val);
+                              handleUpdateDispatchItem(idx, 'isBUnitDropdownOpen', true);
+                              
+                              const matchedUnit = availableUnits.find(u => u.name === val);
+                              if (matchedUnit) {
+                                handleUpdateDispatchItem(idx, 'bUnitName', matchedUnit.name);
+                              } else {
+                                handleUpdateDispatchItem(idx, 'bUnitName', '');
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => {
+                                handleUpdateDispatchItem(idx, 'isBUnitDropdownOpen', false);
+                                if (disp.bUnitName) {
+                                  handleUpdateDispatchItem(idx, 'bUnitSearchTerm', disp.bUnitName);
+                                } else {
+                                  handleUpdateDispatchItem(idx, 'bUnitSearchTerm', '');
+                                }
+                              }, 200);
+                            }}
+                            className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 shadow-sm"
+                            placeholder={`搜尋可服務 ${area || '該區域'} 之單位...`}
+                          />
+                          {disp.isBUnitDropdownOpen && (
+                            <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50">
+                              {filteredBUnits.length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-slate-400 italic">
+                                  查無服務 {area} 之單位
+                                </div>
+                              ) : (
+                                filteredBUnits.map((u) => {
+                                  const statusText = u.rating > 0 ? ` (⭐ ${u.rating}星)` : ' (無評分)';
+                                  return (
+                                    <div
+                                      key={u.id}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        handleUpdateDispatchItem(idx, 'bUnitName', u.name);
+                                        handleUpdateDispatchItem(idx, 'bUnitSearchTerm', u.name);
+                                        handleUpdateDispatchItem(idx, 'isBUnitDropdownOpen', false);
+                                      }}
+                                      className="px-3 py-2 text-sm hover:bg-slate-100 cursor-pointer text-slate-700 font-medium flex items-center justify-between"
+                                    >
+                                      <span>{u.name}</span>
+                                      <span className="text-xs text-amber-500 font-bold shrink-0 ml-2">
+                                        {statusText}
+                                      </span>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {disp.bUnitName && (
+                          <button
+                            type="button"
+                            onClick={() => setEditUnitOpen(true)}
+                            className="px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm shrink-0 cursor-pointer"
+                          >
+                            編輯單位
+                          </button>
                         )}
+                      </div>
+                    </div>
+
+                    {/* 派案結果 */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        派案結果
+                      </label>
+                      <select
+                        value={disp.dispatchResult}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'dispatchResult', e.target.value)}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      >
+                        <option value="">-- 請選擇結果 --</option>
+                        <option value="服務提供">服務提供</option>
+                        <option value="服務提供(第二輪)">服務提供(第二輪)</option>
+                        <option value="出備已派案">出備已派案</option>
+                        <option value="案主指定(本單位)">案主指定(本單位)</option>
+                        <option value="外單位自開案">外單位自開案</option>
+                        <option value="無人力">無人力</option>
+                        <option value="逾時未回覆">逾時未回覆</option>
+                        <option value="單位因素無法接案">單位因素無法接案</option>
+                        <option value="派案後取消">派案後取消</option>
+                        <option value="違規停派">違規停派</option>
+                      </select>
+                    </div>
+
+                    {/* A單位照會服務單位日 (datetime-local) */}
+                    <div>
+                      <label htmlFor={idx === 0 ? "aUnitNotifyDate" : `aUnitNotifyDate_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5">
+                        A單位照會服務單位日
+                      </label>
+                      {(() => {
+                        const targetApprovalDate = submitDate || approvalDate;
+                        const targetDateStr = targetApprovalDate ? targetApprovalDate.split('T')[0] : '';
+                        const notifyDateStr = disp.aUnitNotifyDate ? disp.aUnitNotifyDate.split('T')[0] : '';
+                        const isNotifyDateInvalid = notifyDateStr && targetDateStr && notifyDateStr < targetDateStr;
+
+                        return (
+                          <>
+                            <input
+                              id={idx === 0 ? "aUnitNotifyDate" : `aUnitNotifyDate_${idx}`}
+                              type="date"
+                              value={disp.aUnitNotifyDate}
+                              onChange={(e) => handleUpdateDispatchItem(idx, 'aUnitNotifyDate', e.target.value)}
+                              onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'aUnitNotifyDate', val), 'date')}
+                              className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                                isNotifyDateInvalid
+                                  ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
+                                  : 'border-slate-250 focus:ring-purple-500'
+                              }`}
+                            />
+                            {isNotifyDateInvalid && (
+                              <span className="text-[11px] font-bold text-rose-600 mt-1 block">
+                                ⚠️ 照會日不可早於審核通過日 ({targetDateStr})
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(disp.dispatchResult) && (
+                      <div className="col-span-1 md:col-span-3">
+                        <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                          {disp.dispatchResult} 原因/備註 <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={disp.secondRoundReason}
+                          onChange={(e) => handleUpdateDispatchItem(idx, 'secondRoundReason', e.target.value)}
+                          className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          placeholder={`請填寫 ${disp.dispatchResult} 原因/備註...`}
+                        />
                       </div>
                     )}
                   </div>
-                  {bUnitName && (
-                    <button
-                      type="button"
-                      onClick={() => setEditUnitOpen(true)}
-                      className="px-3 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm shrink-0 cursor-pointer animate-in fade-in slide-in-from-right-2 duration-200"
-                    >
-                      編輯單位
-                    </button>
-                  )}
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  派案結果
-                </label>
-                <select
-                  value={dispatchResult}
-                  onChange={(e) => setDispatchResult(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  <option value="">-- 請選擇結果 --</option>
-                  <option value="服務提供">服務提供</option>
-                  <option value="服務提供(第二輪)">服務提供(第二輪)</option>
-                  <option value="出備已派案">出備已派案</option>
-                  <option value="案主指定(本單位)">案主指定(本單位)</option>
-                  <option value="外單位自開案">外單位自開案</option>
-                  <option value="無人力">無人力</option>
-                  <option value="逾時未回覆">逾時未回覆</option>
-                  <option value="單位因素無法接案">單位因素無法接案</option>
-                  <option value="派案後取消">派案後取消</option>
-                  <option value="違規停派">違規停派</option>
-                </select>
-              </div>
+                {/* 四、單位回覆時效/異常追蹤 (依據圖一重排順序) */}
+                <div>
+                  <div className="bg-[#e0f2fe] border-l-4 border-[#0284c7] px-4 py-1.5 rounded-r-lg mb-4 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-sky-900 m-0">
+                      四、單位回覆時效/異常追蹤 {dispatches.length > 1 ? `(第 ${idx + 1} 碼別)` : ''}
+                    </h3>
+                    <span className="text-[11px] font-semibold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded">
+                      報表 4 派案單位追蹤異常回復表
+                    </span>
+                  </div>
 
-              <div>
-                <label htmlFor="aUnitNotifyDate" className="block text-xs font-bold text-slate-650 mb-1.5">
-                  A單位照會服務單位日
-                </label>
-                {(() => {
-                  const targetApprovalDate = submitDate || approvalDate;
-                  const targetDateStr = targetApprovalDate ? targetApprovalDate.split('T')[0] : '';
-                  const notifyDateStr = aUnitNotifyDate ? aUnitNotifyDate.split('T')[0] : '';
-                  const isNotifyDateInvalid = notifyDateStr && targetDateStr && notifyDateStr < targetDateStr;
-
-                  return (
-                    <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 第 1 順位：服務單位回復日期 (單位回覆日) */}
+                    <div>
+                      <label className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
+                        <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">1</span>
+                        服務單位回復日期 (單位回覆日)
+                      </label>
                       <input
-                        id="aUnitNotifyDate"
                         type="date"
-                        value={aUnitNotifyDate}
-                        onChange={(e) => setAUnitNotifyDate(e.target.value)}
-                        onPaste={handleDatePaste(setAUnitNotifyDate, 'date')}
-                        className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
-                          isNotifyDateInvalid
-                            ? 'border-rose-500 text-rose-600 focus:ring-rose-500 font-bold'
-                            : 'border-slate-250 focus:ring-purple-500'
+                        value={disp.bUnitReplyDate}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', e.target.value)}
+                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', val), 'date')}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    {/* 第 2 順位：首次服務日期 (實際進場日) - 改為 datetime-local */}
+                    <div>
+                      <label className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
+                        <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">2</span>
+                        首次服務日期 (實際進場日)
+                      </label>
+                      <input
+                        type="datetime-local"
+                        step="1"
+                        value={disp.firstServiceDate}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'firstServiceDate', e.target.value)}
+                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'firstServiceDate', val), 'datetime-local')}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    {/* 原因分類 */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        原因分類 (案家 / 個案 / 單位 / 其他)
+                      </label>
+                      <select
+                        value={disp.anomalyReasonType}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyReasonType', e.target.value)}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      >
+                        <option value="">-- 無異常 --</option>
+                        <option value="案家">案家</option>
+                        <option value="個案">個案</option>
+                        <option value="單位">單位</option>
+                        <option value="其他">其他</option>
+                      </select>
+                    </div>
+
+                    {/* 異常發生日 (設定日期) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        異常發生日 (設定日期)
+                      </label>
+                      <input
+                        type="date"
+                        value={disp.anomalyDate}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyDate', e.target.value)}
+                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'anomalyDate', val), 'date')}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    {/* 超過天數 (自動計算工作天並提示異常) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        超過天數 (系統自動計算)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={disp.overdueDays}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'overdueDays', e.target.value)}
+                        placeholder="自動計算天數..."
+                        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 font-bold ${
+                          Number(disp.overdueDays) > 0
+                            ? 'border-rose-500 bg-rose-50 text-rose-600 focus:ring-rose-500'
+                            : 'border-slate-250 bg-white text-slate-800 focus:ring-sky-500'
                         }`}
                       />
-                      {isNotifyDateInvalid && (
-                        <span className="text-[11px] font-bold text-rose-600 mt-1 block">
-                          ⚠️ 照會日不可早於審核通過日 ({targetDateStr})
+                      {Number(disp.overdueDays) > 0 && (
+                        <span className="text-xs font-extrabold text-rose-600 mt-1 block animate-pulse">
+                          🚨 警告：已超過 {disp.overdueDays} 天進場 (扣除例假日計算)
                         </span>
                       )}
-                    </>
-                  );
-                })()}
+                    </div>
+
+                    {/* 異常事項 (品質類別) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        異常事項 (品質類別)
+                      </label>
+                      <input
+                        type="text"
+                        value={disp.anomalyCategory}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyCategory', e.target.value)}
+                        placeholder="文字備註，若無則空白..."
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+
+                    {/* 異常內容摘述 */}
+                    <div className="col-span-1 md:col-span-3">
+                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                        異常內容摘述
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={disp.anomalySummary}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalySummary', e.target.value)}
+                        placeholder="文字備註，若無則空白..."
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+            );
+          })}
 
-              {['服務提供(第二輪)', '逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult) && (
-                <div className="col-span-1 md:col-span-3">
-                  <label htmlFor="secondRoundReason" className="block text-xs font-bold text-slate-650 mb-1.5">
-                    {dispatchResult} 原因/備註 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="secondRoundReason"
-                    required
-                    value={secondRoundReason}
-                    onChange={(e) => setSecondRoundReason(e.target.value)}
-                    className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
-                    placeholder={`請填寫 ${dispatchResult} 原因/備註...`}
-                  />
-                </div>
-              )}
-
-              {dispatchResult && (
-                <div className="col-span-1 md:col-span-3 bg-purple-50/70 border border-purple-200/80 rounded-xl p-3 text-xs space-y-2 shadow-sm mt-1">
-                  <div className="font-bold text-purple-900 flex items-center gap-1.5">
-                    <span>💡 派案結果影響即時預覽</span>
-                    <span className="text-[11px] text-purple-600 font-normal">（依據「指派 B 單位」與「派案結果」自動判定）</span>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-700">
-                    <div className="flex items-center gap-1.5 bg-white/80 px-3 py-2 rounded-lg border border-purple-100">
-                      <span className="font-semibold text-slate-500">BA 內轉率：</span>
-                      {serviceContent === 'BA' && ['新案_初評', '新案_出備', '自行發掘'].includes(dispatchType) ? (
-                        bUnitName === YUKANG_NAME && dispatchResult === '服務提供' ? (
-                          <span className="text-emerald-700 font-bold">✅ 計入分子 (+1 提升內轉率)</span>
-                        ) : (
-                          <span className="text-rose-600 font-bold">❌ 計入分母，不計分子 (+0)</span>
-                        )
-                      ) : (
-                        <span className="text-slate-500 font-medium">非 BA 新案範疇 (不影響內轉率)</span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 bg-white/80 px-3 py-2 rounded-lg border border-purple-100">
-                      <span className="font-semibold text-slate-500">輪序次數：</span>
-                      {(() => {
-                        const isYukang = bUnitName === YUKANG_NAME;
-                        if (dispatchResult === '服務提供') {
-                          return <span className="text-purple-700 font-bold">次數 +1 (第一輪派案，順位後移)</span>;
-                        }
-                        if (dispatchResult === '服務提供(第二輪)' || dispatchResult === '出備已派案') {
-                          return isYukang ? (
-                            <span className="text-purple-700 font-bold">次數 +1 (悠康第二輪/出備案)</span>
-                          ) : (
-                            <span className="text-emerald-700 font-bold">次數 +0 (外單位被動救援保護，順位不扣)</span>
-                          );
-                        }
-                        if (['逾時未回覆', '無人力', '單位因素無法接案'].includes(dispatchResult)) {
-                          return <span className="text-amber-700 font-bold">次數 +1 (順位後移)</span>;
-                        }
-                        if (['外單位自開案', '案主指定(本單位)'].includes(dispatchResult)) {
-                          return <span className="text-blue-700 font-bold">次數 +0 (指定/自開案，不計輪排)</span>;
-                        }
-                        if (dispatchResult === '派案後取消') {
-                          return <span className="text-slate-600 font-bold">次數 +0 (取消派案)</span>;
-                        }
-                        if (dispatchResult === '違規停派') {
-                          return <span className="text-rose-700 font-bold">次數 +0 (自動設為停派中，違規次數 +1)</span>;
-                        }
-                        return <span className="text-slate-500">次數 +0</span>;
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-6 py-2 mt-4">
-              <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={isUnitCounseling}
-                  onChange={(e) => setIsUnitCounseling(e.target.checked)}
-                  className="rounded border-slate-350 text-purple-650 focus:ring-purple-500 w-4 h-4"
-                />
-                是否需要單位輔導
+          {/* 五、其他與備註 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-200 pt-4">
+            <div className="col-span-1 md:col-span-3">
+              <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                後續追蹤 / 辦理情形
               </label>
-            </div>
-          </div>
-
-          {/* 四、單位回覆時效/異常追蹤 (對應五大表 報表 4 欄位結構) */}
-          <div>
-            <div className="bg-[#e0f2fe] border-l-4 border-[#0284c7] px-4 py-1.5 rounded-r-lg mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-sky-900 m-0">
-                四、單位回覆時效/異常追蹤
-              </h3>
-              <span className="text-[11px] font-semibold text-sky-700 bg-sky-100/80 px-2 py-0.5 rounded">
-                報表 4 派案單位追蹤異常回復表
-              </span>
+              <input
+                type="text"
+                value={followUpStatus}
+                onChange={(e) => setFollowUpStatus(e.target.value)}
+                placeholder="文字備註，若無則空白..."
+                className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 原因分類 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  原因分類 (案家 / 個案 / 單位 / 其他)
-                </label>
-                <select
-                  value={anomalyReasonType}
-                  onChange={(e) => setAnomalyReasonType(e.target.value)}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                >
-                  <option value="">-- 無異常 --</option>
-                  <option value="案家">案家</option>
-                  <option value="個案">個案</option>
-                  <option value="單位">單位</option>
-                  <option value="其他">其他</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                其他
+              </label>
+              <input
+                type="text"
+                value={otherNote}
+                onChange={(e) => setOtherNote(e.target.value)}
+                placeholder="文字備註，若無則空白..."
+                className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+            </div>
 
-              {/* 異常發生日 (設定日期) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  異常發生日 (設定日期)
-                </label>
-                <input
-                  type="date"
-                  value={anomalyDate}
-                  onChange={(e) => setAnomalyDate(e.target.value)}
-                  onPaste={handleDatePaste(setAnomalyDate, 'date')}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 單位回覆日 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  服務單位回復日期 (單位回覆日)
-                </label>
-                <input
-                  type="date"
-                  value={bUnitReplyDate}
-                  onChange={(e) => setBUnitReplyDate(e.target.value)}
-                  onPaste={handleDatePaste(setBUnitReplyDate, 'date')}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 首次服務日期 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  首次服務日期 (實際進場日)
-                </label>
-                <input
-                  type="date"
-                  value={firstServiceDate}
-                  onChange={(e) => setFirstServiceDate(e.target.value)}
-                  onPaste={handleDatePaste(setFirstServiceDate, 'date')}
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 超過天數 (手動輸入天數) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  超過天數 (請輸入天數)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={overdueDays}
-                  onChange={(e) => setOverdueDays(e.target.value)}
-                  placeholder="例: 3"
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500 font-bold text-slate-800"
-                />
-              </div>
-
-              {/* 異常事項 (品質類別) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  異常事項 (品質類別)
-                </label>
-                <input
-                  type="text"
-                  value={anomalyCategory}
-                  onChange={(e) => setAnomalyCategory(e.target.value)}
-                  placeholder="文字備註，若無則空白..."
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 異常內容摘述 */}
-              <div className="col-span-1 md:col-span-3">
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  異常內容摘述
-                </label>
-                <textarea
-                  rows={2}
-                  value={anomalySummary}
-                  onChange={(e) => setAnomalySummary(e.target.value)}
-                  placeholder="文字備註，若無則空白..."
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 後續追蹤/辦理情形 */}
-              <div className="col-span-1 md:col-span-3">
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  後續追蹤 / 辦理情形
-                </label>
-                <input
-                  type="text"
-                  value={followUpStatus}
-                  onChange={(e) => setFollowUpStatus(e.target.value)}
-                  placeholder="文字備註，若無則空白..."
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 其他 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  其他
-                </label>
-                <input
-                  type="text"
-                  value={otherNote}
-                  onChange={(e) => setOtherNote(e.target.value)}
-                  placeholder="文字備註，若無則空白..."
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
-
-              {/* 備註 */}
-              <div>
-                <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                  備註
-                </label>
-                <input
-                  type="text"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="文字備註，若無則空白..."
-                  className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                備註
+              </label>
+              <input
+                type="text"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="文字備註，若無則空白..."
+                className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
             </div>
           </div>
           </>
           )}
 
           {/* 交接訊息生成區 */}
-          {bUnitName && (
+          {dispatches[0]?.bUnitName && (
             <div className="bg-[#f8fafc] border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-inner">
               <div>
                 <h4 className="text-sm font-bold text-slate-800 m-0">
@@ -1367,9 +1404,9 @@ export default function CaseForm({ activeCase, onClose }) {
       />
 
       {/* 編輯單位模態框 */}
-      {bUnitName && editUnitOpen && (
+      {dispatches[0]?.bUnitName && editUnitOpen && (
         <UnitEditModal
-          unit={units.find((u) => u.name === bUnitName)}
+          unit={units.find((u) => u.name === dispatches[0]?.bUnitName)}
           isOpen={editUnitOpen}
           onClose={() => setEditUnitOpen(false)}
         />
@@ -1380,7 +1417,7 @@ export default function CaseForm({ activeCase, onClose }) {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-3 flex justify-between items-center text-white shrink-0">
-              <h3 className="font-bold text-white mb-0 text-sm">「{serviceContent}」碼別輪序表 (依派案次數排序)</h3>
+              <h3 className="font-bold text-white mb-0 text-sm">「{currentServiceContent}」碼別輪序表 (依派案次數排序)</h3>
               <button type="button" onClick={() => setIsUnitListOpen(false)} className="hover:bg-white/20 p-1 rounded-full text-white cursor-pointer transition">
                 <X className="w-4 h-4" />
               </button>
