@@ -12,7 +12,7 @@ import UnitEditModal from './UnitEditModal';
 import { DISPATCH_TYPES, SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 
 export default function CaseForm({ activeCase, onClose }) {
-  const { cases, addCase, updateCase } = useCases();
+  const { cases, addCase, updateCase, saveCaseWithDispatches } = useCases();
   const { units, updateUnit } = useUnits();
   const { staffList } = useStaff();
 
@@ -35,6 +35,9 @@ export default function CaseForm({ activeCase, onClose }) {
   const [hasReferralForm, setHasReferralForm] = useState(activeCase?.hasReferralForm ?? true);
   const [isCMSRecorded, setIsCMSRecorded] = useState(activeCase?.isCMSRecorded ?? true);
 
+  // 獲取與當前編輯個案相同 id 的所有舊紀錄 (若有)
+  const relatedCases = activeCase ? cases.filter(c => c.id === activeCase.id) : [];
+
   // 方案 A: 支援同個案多派案碼別 (dispatches 陣列)
   const createDefaultDispatchItem = (base = {}) => ({
     dispatchType: base.dispatchType || '新案_初評',
@@ -56,9 +59,15 @@ export default function CaseForm({ activeCase, onClose }) {
     isUnitCounseling: base.isUnitCounseling || false,
   });
 
-  const initialDispatches = (activeCase?.dispatches && activeCase.dispatches.length > 0)
-    ? activeCase.dispatches.map(createDefaultDispatchItem)
-    : [createDefaultDispatchItem(activeCase || {})];
+  const initialDispatches = (() => {
+    if (relatedCases.length > 0) {
+      return relatedCases.map(createDefaultDispatchItem);
+    }
+    if (activeCase?.dispatches && activeCase.dispatches.length > 0) {
+      return activeCase.dispatches.map(createDefaultDispatchItem);
+    }
+    return [createDefaultDispatchItem(activeCase || {})];
+  })();
 
   const [dispatches, setDispatches] = useState(initialDispatches);
 
@@ -293,71 +302,79 @@ export default function CaseForm({ activeCase, onClose }) {
       }
     }
 
-    const firstDisp = dispatches[0] || {};
-
-    // 準備儲存資料
-    const savedData = {
-      id,
-      name,
-      gender,
-      supervisor,
-      area,
-      date: activeCase ? activeCase.date : new Date().toLocaleDateString('zh-TW'),
-      recordCategory, // 'dispatch' | 'referral'
-      ...(recordCategory === 'referral'
-        ? {
-            serviceContent: referralType === '其他長照服務連結' ? '轉介_其他長照' : '轉介_醫事C',
-            referralType,
-            referralDate,
-            referralReplyDate,
-            referralUnitName,
-            referralReason,
-            referralFollowUp,
-            referralTarget,
-            emailSentStatus,
-            referralRemarks,
-            cStationInfo,
-            reEvalResult,
-            hasReferralForm,
-            isCMSRecorded,
-            bUnitName: referralUnitName,
-            status: '已轉介',
-          }
-        : {
-            dispatches, // 方案 A: 多碼別派案紀錄清單
-            superApprovalDate,
-            approvalDate,
-            deadlineDate,
-            submitDate,
-            status: isOvertime ? '超時效' : '時效內',
-            delayReason: isOvertime ? delayReason : '',
-            dispatchType: firstDisp.dispatchType,
-            serviceContent: firstDisp.serviceContent,
-            bUnitName: firstDisp.bUnitName,
-            dispatchResult: firstDisp.dispatchResult,
-            secondRoundReason: firstDisp.secondRoundReason,
-            isUnitCounseling: firstDisp.isUnitCounseling,
-            aUnitNotifyDate: firstDisp.aUnitNotifyDate,
-            bUnitStartDate: firstDisp.bUnitStartDate,
-            bUnitReplyDate: firstDisp.bUnitReplyDate,
-            firstServiceDate: firstDisp.firstServiceDate,
-            overdueDays: firstDisp.overdueDays,
-            anomalyReasonType: firstDisp.anomalyReasonType,
-            anomalyDate: firstDisp.anomalyDate,
-            anomalyCategory: firstDisp.anomalyCategory,
-            anomalySummary: firstDisp.anomalySummary,
-            followUpStatus,
-            otherNote,
-            remarks,
-          }),
-      isClosed: activeCase ? activeCase.isClosed : false,
-    };
-
-    if (activeCase) {
-      updateCase(activeCase, savedData);
+    if (recordCategory === 'referral') {
+      const singleRecord = {
+        id,
+        name,
+        gender,
+        supervisor,
+        area,
+        date: activeCase ? activeCase.date : new Date().toLocaleDateString('zh-TW'),
+        recordCategory: 'referral',
+        serviceContent: referralType === '其他長照服務連結' ? '轉介_其他長照' : '轉介_醫事C',
+        referralType,
+        referralDate,
+        referralReplyDate,
+        referralUnitName,
+        referralReason,
+        referralFollowUp,
+        referralTarget,
+        emailSentStatus,
+        referralRemarks,
+        cStationInfo,
+        reEvalResult,
+        hasReferralForm,
+        isCMSRecorded,
+        bUnitName: referralUnitName,
+        status: '已轉介',
+        isClosed: activeCase ? activeCase.isClosed : false,
+      };
+      saveCaseWithDispatches(id, [singleRecord]);
     } else {
-      addCase(savedData);
+      const recordsToSave = dispatches.map((disp, idx) => {
+        const existingRecord = relatedCases[idx];
+        return {
+          id,
+          name,
+          gender,
+          supervisor,
+          area,
+          date: activeCase ? activeCase.date : new Date().toLocaleDateString('zh-TW'),
+          recordCategory: 'dispatch',
+          dispatches, // retain full dispatches array in each record
+          superApprovalDate,
+          approvalDate,
+          deadlineDate,
+          submitDate,
+          status: isOvertime ? '超時效' : '時效內',
+          delayReason: isOvertime ? delayReason : '',
+          followUpStatus,
+          otherNote,
+          remarks,
+          isClosed: activeCase ? activeCase.isClosed : false,
+
+          _recordId: existingRecord?._recordId || `${id}_${disp.serviceContent || 'default'}_${idx}_${Date.now()}`,
+          dispatchType: disp.dispatchType,
+          serviceContent: disp.serviceContent,
+          bUnitName: disp.bUnitName,
+          dispatchResult: disp.dispatchResult,
+          secondRoundReason: disp.secondRoundReason,
+          isUnitCounseling: disp.isUnitCounseling,
+          aUnitNotifyDate: disp.aUnitNotifyDate,
+          bUnitStartDate: disp.bUnitStartDate,
+          bUnitReplyDate: disp.bUnitReplyDate,
+          firstServiceDate: disp.firstServiceDate,
+          overdueDays: disp.overdueDays,
+          anomalyReasonType: disp.anomalyReasonType,
+          anomalyDate: disp.anomalyDate,
+          anomalyCategory: disp.anomalyCategory,
+          anomalySummary: disp.anomalySummary,
+        };
+      });
+
+      saveCaseWithDispatches(id, recordsToSave);
     }
+
     onClose();
   };
 

@@ -322,8 +322,43 @@ export function CaseProvider({ children }) {
     }
   };
 
+  const saveCaseWithDispatches = async (caseId, recordsList) => {
+    const sanitizedList = recordsList.map((item, index) => ({
+      ...item,
+      _recordId: item._recordId || `${caseId}_${item.serviceContent || 'default'}_${index}_${Math.random().toString(36).substr(2, 5)}`
+    }));
+
+    setCases((prevCases) => {
+      const filtered = prevCases.filter((c) => c.id !== caseId);
+      const updated = [...filtered, ...sanitizedList];
+      localStorage.setItem('local_cases', JSON.stringify(updated));
+
+      if (isFirebaseConfigured()) {
+        (async () => {
+          try {
+            const querySnapshot = await getDocs(collection(db, 'cases'));
+            const batch = writeBatch(db);
+            querySnapshot.forEach((docSnap) => {
+              if (docSnap.data()?.id === caseId) {
+                batch.delete(docSnap.ref);
+              }
+            });
+            for (const r of sanitizedList) {
+              batch.set(doc(db, 'cases', r._recordId), r);
+            }
+            await batch.commit();
+          } catch (error) {
+            console.error('Error saving multi-dispatch case to Firestore:', error);
+          }
+        })();
+      }
+
+      return updated;
+    });
+  };
+
   return (
-    <CaseContext.Provider value={{ cases, addCase, updateCase, closeCase, reopenCase, deleteCase }}>
+    <CaseContext.Provider value={{ cases, addCase, updateCase, saveCaseWithDispatches, closeCase, reopenCase, deleteCase }}>
       {children}
     </CaseContext.Provider>
   );
