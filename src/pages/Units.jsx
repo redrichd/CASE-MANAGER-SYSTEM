@@ -3,7 +3,7 @@ import { useUnits } from '../contexts/UnitContext';
 import { useCases } from '../contexts/CaseContext';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
-import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2 } from 'lucide-react';
+import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2, AlertTriangle } from 'lucide-react';
 import { SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -54,9 +54,25 @@ export default function Units() {
   const [newAuthor, setNewAuthor] = useState('');
   const [newComment, setNewComment] = useState('');
 
-  // 篩選狀態 (支援複選)
+  // 篩選狀態 (服務與區域皆支援複選)
   const [selectedServiceFilters, setSelectedServiceFilters] = useState(['ALL']);
-  const [selectedAreaFilter, setSelectedAreaFilter] = useState('ALL');
+  const [selectedAreaFilters, setSelectedAreaFilters] = useState(['ALL']);
+  const [areaFilterMode, setAreaFilterMode] = useState('AND'); // 'AND': 同時服務所選多區域 | 'OR': 服務任一區域
+
+  const handleToggleAreaFilter = (areaName) => {
+    setSelectedAreaFilters((prev) => {
+      if (areaName === 'ALL') {
+        return ['ALL'];
+      }
+      const withoutAll = prev.filter((a) => a !== 'ALL');
+      if (withoutAll.includes(areaName)) {
+        const next = withoutAll.filter((a) => a !== areaName);
+        return next.length === 0 ? ['ALL'] : next;
+      } else {
+        return [...withoutAll, areaName];
+      }
+    });
+  };
 
   const handleToggleServiceFilter = (key) => {
     setSelectedServiceFilters((prev) => {
@@ -105,11 +121,20 @@ export default function Units() {
   const filteredCasesForStats = getFilteredCasesForStats();
   const statsUnits = calculateUnitStats(units, filteredCasesForStats);
 
-  // 2. 根據選擇的區域與服務類別，過濾單位 (支援複選聯集)
+  // 2. 根據選擇的區域與服務類別，過濾單位 (區域支援複選篩選多區域單位)
   const serviceFilteredUnits = statsUnits.filter((u) => {
-    if (selectedAreaFilter !== 'ALL') {
-      if (!u.serviceAreas || !u.serviceAreas.includes(selectedAreaFilter)) {
+    if (!selectedAreaFilters.includes('ALL')) {
+      if (!u.serviceAreas || u.serviceAreas.length === 0) {
         return false;
+      }
+      if (areaFilterMode === 'AND') {
+        // 同時涵蓋所選的所有區域 (篩選出有服務多區域的單位)
+        const hasAllAreas = selectedAreaFilters.every((a) => u.serviceAreas.includes(a));
+        if (!hasAllAreas) return false;
+      } else {
+        // 包含任一所選區域
+        const hasAnyArea = selectedAreaFilters.some((a) => u.serviceAreas.includes(a));
+        if (!hasAnyArea) return false;
       }
     }
     if (selectedServiceFilters.includes('ALL')) return true;
@@ -132,10 +157,21 @@ export default function Units() {
     u.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 檢查新增單位名稱是否重複
+  const trimmedNewName = newName.trim();
+  const isDuplicateNewName = trimmedNewName !== '' && units.some(
+    (u) => u.name.trim().toLowerCase() === trimmedNewName.toLowerCase()
+  );
+
   // 處理新增單位
   const handleAddUnit = (e) => {
     e.preventDefault();
-    if (!newName.trim()) return;
+    if (!trimmedNewName) return;
+
+    if (isDuplicateNewName) {
+      alert(`系統中已存在相同名稱的單位「${trimmedNewName}」，請勿重複新增！`);
+      return;
+    }
     
     const initialComments = [];
     if (newAuthor.trim() && newComment.trim()) {
@@ -267,16 +303,42 @@ export default function Units() {
       <div className="bg-[#f8fafc] border border-slate-200 rounded-2xl p-4 space-y-4">
         {/* 區域篩選 */}
         <div>
-          <div className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-            <span>📍 服務區域篩選：</span>
-            <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">過濾有服務該區域之單位</span>
+          <div className="text-xs font-bold text-slate-500 mb-2 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-1.5">
+              <span>📍 服務區域篩選：</span>
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">可複選</span>
+              <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                {selectedAreaFilters.includes('ALL')
+                  ? '顯示所有區域之單位'
+                  : areaFilterMode === 'AND'
+                    ? '篩選出同時服務所選所有區域的單位'
+                    : '篩選出有服務所選任一區域的單位'}
+              </span>
+            </div>
+            {!selectedAreaFilters.includes('ALL') && selectedAreaFilters.length > 1 && (
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-400">複選規則：</span>
+                <button
+                  type="button"
+                  onClick={() => setAreaFilterMode((m) => (m === 'AND' ? 'OR' : 'AND'))}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                    areaFilterMode === 'AND'
+                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700 hover:bg-indigo-100 shadow-xs'
+                      : 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100 shadow-xs'
+                  }`}
+                  title="點擊可切換交集(同時符合)或聯集(符合任一)"
+                >
+                  {areaFilterMode === 'AND' ? '🔗 同時服務多區域 (AND)' : '🔀 服務任一區域 (OR)'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setSelectedAreaFilter('ALL')}
+              onClick={() => handleToggleAreaFilter('ALL')}
               className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
-                selectedAreaFilter === 'ALL'
+                selectedAreaFilters.includes('ALL')
                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/10'
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800'
               }`}
@@ -284,12 +346,12 @@ export default function Units() {
               全部區域
             </button>
             {SERVICE_AREAS.map((areaName) => {
-              const isActive = selectedAreaFilter === areaName;
+              const isActive = selectedAreaFilters.includes(areaName);
               return (
                 <button
                   key={areaName}
                   type="button"
-                  onClick={() => setSelectedAreaFilter(areaName)}
+                  onClick={() => handleToggleAreaFilter(areaName)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
                     isActive
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-600/10'
@@ -538,17 +600,32 @@ export default function Units() {
             
             <form onSubmit={handleAddUnit} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">
-                  單位名稱 <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center justify-between">
+                  <span>單位名稱 <span className="text-red-500">*</span></span>
+                  {isDuplicateNewName && (
+                    <span className="text-xs font-bold text-rose-600 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      單位名稱已存在
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+                  className={`w-full rounded-xl border px-3 py-2 text-sm focus:outline-none transition ${
+                    isDuplicateNewName
+                      ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                      : 'border-slate-200 bg-slate-50/50 focus:ring-2 focus:ring-purple-500'
+                  }`}
                   placeholder="請輸入單位完整名稱"
                 />
+                {isDuplicateNewName && (
+                  <p className="text-xs font-bold text-rose-600 mt-1.5 mb-0 flex items-center gap-1">
+                    ⚠️ 系統中已存在「{trimmedNewName}」，請勿重複新增同樣的單位！
+                  </p>
+                )}
               </div>
 
               <div>
@@ -661,7 +738,12 @@ export default function Units() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-md transition"
+                  disabled={isDuplicateNewName}
+                  className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-md transition ${
+                    isDuplicateNewName
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                  }`}
                 >
                   確認建立
                 </button>

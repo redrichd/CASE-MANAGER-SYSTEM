@@ -237,5 +237,70 @@ describe('Units Page Integration Test', () => {
     expect(baFilterBtn.className).toContain('bg-purple-600');
     expect(daFilterBtn.className).toContain('bg-purple-600');
   });
+
+  it('should prevent adding duplicate unit name with instant UI warning and disabled submit button', async () => {
+    renderWithProviders(<Units />);
+
+    const addBtn = screen.getByRole('button', { name: /新增合作單位/ });
+    await act(async () => {
+      fireEvent.click(addBtn);
+    });
+
+    const nameInput = screen.getByPlaceholderText('請輸入單位完整名稱');
+    const submitBtn = screen.getByRole('button', { name: '確認建立' });
+
+    // 輸入系統中已存在的單位名稱（例如：大同居家照顧服務所）
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '  大同居家照顧服務所  ' } });
+    });
+
+    // 驗證出現即時防呆警告
+    expect(screen.getByText('單位名稱已存在')).toBeInTheDocument();
+    expect(screen.getByText(/系統中已存在「大同居家照顧服務所」，請勿重複新增同樣的單位！/)).toBeInTheDocument();
+    expect(submitBtn).toBeDisabled();
+
+    // 換成不重複的名稱後警告消失且可點擊
+    await act(async () => {
+      fireEvent.change(nameInput, { target: { value: '全新獨立合作單位' } });
+    });
+    expect(screen.queryByText('單位名稱已存在')).not.toBeInTheDocument();
+    expect(submitBtn).not.toBeDisabled();
+  });
+
+  it('should support multi-selecting service areas to filter units with multiple service areas', async () => {
+    renderWithProviders(<Units />);
+
+    const xinzhuangBtn = screen.getByRole('button', { name: '新莊區' });
+    const sanchongBtn = screen.getByRole('button', { name: '三重區' });
+
+    // 複選：點選新莊區與三重區
+    await act(async () => {
+      fireEvent.click(xinzhuangBtn);
+      fireEvent.click(sanchongBtn);
+    });
+
+    // 兩者皆為選取狀態
+    expect(xinzhuangBtn.className).toContain('bg-indigo-600');
+    expect(sanchongBtn.className).toContain('bg-indigo-600');
+
+    // 驗證預設同時服務多區域 (AND) 標籤與模式切換按鈕
+    expect(screen.getByText(/篩選出同時服務所選所有區域的單位/)).toBeInTheDocument();
+    const modeBtn = screen.getByTitle(/點擊可切換交集/);
+    expect(modeBtn).toBeInTheDocument();
+
+    // 點擊切換為 OR 模式
+    await act(async () => {
+      fireEvent.click(modeBtn);
+    });
+    expect(screen.getByText(/篩選出有服務所選任一區域的單位/)).toBeInTheDocument();
+
+    // 點選全部區域重設
+    const allBtn = screen.getByRole('button', { name: '全部區域' });
+    await act(async () => {
+      fireEvent.click(allBtn);
+    });
+    expect(allBtn.className).toContain('bg-indigo-600');
+    expect(xinzhuangBtn.className).not.toContain('bg-indigo-600');
+  });
 });
 

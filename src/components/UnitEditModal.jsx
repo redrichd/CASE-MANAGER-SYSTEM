@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { X, Save, Plus, Star } from 'lucide-react';
+import { X, Save, Plus, Star, AlertTriangle } from 'lucide-react';
 import { useUnits } from '../contexts/UnitContext';
 import { SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 
 export default function UnitEditModal({ unit, isOpen, onClose }) {
-  const { updateUnit, addComment } = useUnits();
+  const { units, updateUnit, addComment } = useUnits();
   const [name, setName] = useState(unit?.name || '');
   const [services, setServices] = useState(unit?.services || []);
   const [serviceAreas, setServiceAreas] = useState(
@@ -14,6 +14,12 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
   const [rating, setRating] = useState(unit?.rating || 0);
   const [author, setAuthor] = useState('');
   const [comment, setComment] = useState('');
+
+  // 檢查是否與其他單位名稱重複
+  const trimmedName = name.trim();
+  const isDuplicateName = trimmedName !== '' && units?.some(
+    (u) => u.id !== unit?.id && u.name.trim().toLowerCase() === trimmedName.toLowerCase()
+  );
 
   const handleServiceToggle = (code) => {
     setServices((prev) =>
@@ -28,7 +34,12 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
   };
 
   const handleSave = () => {
-    updateUnit(unit.id, { name, services, serviceAreas, isStopped, rating });
+    if (!trimmedName) return;
+    if (isDuplicateName) {
+      alert(`系統中已存在其他名稱為「${trimmedName}」的合作單位，名稱不可重複！`);
+      return;
+    }
+    updateUnit(unit.id, { name: trimmedName, services, serviceAreas, isStopped, rating });
     onClose();
   };
 
@@ -64,17 +75,32 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="p-6 space-y-4 overflow-y-auto flex-1">
           {/* 單位名稱 */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-              單位名稱 <span className="text-red-500">*</span>
+            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+              <span>單位名稱 <span className="text-red-500">*</span></span>
+              {isDuplicateName && (
+                <span className="text-xs font-bold text-rose-600 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  單位名稱已存在
+                </span>
+              )}
             </label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm bg-slate-50/50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
+              className={`w-full rounded-xl border px-3 py-2 text-sm focus:outline-none transition ${
+                isDuplicateName
+                  ? 'border-rose-500 bg-rose-50/40 text-rose-900 focus:ring-2 focus:ring-rose-500'
+                  : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 focus:ring-2 focus:ring-purple-500'
+              }`}
               placeholder="請輸入單位名稱"
             />
+            {isDuplicateName && (
+              <p className="text-xs font-bold text-rose-600 mt-1.5 mb-0 flex items-center gap-1">
+                ⚠️ 系統已存在其他名稱為「{trimmedName}」的合作單位，請更換名稱！
+              </p>
+            )}
           </div>
 
           {/* 可提供服務 (複選) */}
@@ -223,7 +249,12 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer flex items-center gap-1"
+              disabled={isDuplicateName}
+              className={`px-5 py-2 rounded-xl text-xs font-semibold shadow-md transition flex items-center gap-1 ${
+                isDuplicateName
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+              }`}
             >
               <Save className="w-3.5 h-3.5" />
               儲存資料

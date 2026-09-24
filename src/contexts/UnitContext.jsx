@@ -179,6 +179,14 @@ export function UnitProvider({ children }) {
   };
 
   const addUnit = async (newUnit) => {
+    const trimmedName = newUnit.name?.trim();
+    if (!trimmedName) return;
+
+    if (units.some(u => u.name.trim().toLowerCase() === trimmedName.toLowerCase())) {
+      console.warn(`Unit with name "${trimmedName}" already exists.`);
+      return;
+    }
+
     const ids = units.map(u => {
       const match = u.id.match(/\d+/);
       return match ? parseInt(match[0], 10) : 0;
