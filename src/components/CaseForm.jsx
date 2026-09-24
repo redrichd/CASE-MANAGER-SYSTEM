@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCases } from '../contexts/CaseContext';
 import { useUnits } from '../contexts/UnitContext';
 import { useStaff } from '../contexts/StaffContext';
@@ -37,6 +37,36 @@ export default function CaseForm({ activeCase, onClose }) {
 
   // 獲取與當前編輯個案相同 id 的所有舊紀錄 (若有)
   const relatedCases = activeCase ? cases.filter(c => c.id === activeCase.id) : [];
+
+  // 計算當前案件實際完成工作天數 (從初評第一次督導核定通過日到照顧計劃審核通過日)
+  const currentCompletionDays = useMemo(() => {
+    if (!superApprovalDate || !submitDate) return null;
+    if (new Date(submitDate) <= new Date(superApprovalDate)) return 0;
+    const { workingDays } = calculateWorkdayOverdueDays(superApprovalDate, submitDate);
+    return workingDays;
+  }, [superApprovalDate, submitDate]);
+
+  // 統計所有個案的平均完成天數 (計算所有資料的平均完成天數)
+  const averageCompletionStats = useMemo(() => {
+    if (!cases || cases.length === 0) return { avg: null, count: 0 };
+    const validDays = [];
+    cases.forEach((c) => {
+      const sDate = c.superApprovalDate;
+      const eDate = c.submitDate;
+      if (sDate && eDate && new Date(eDate) > new Date(sDate)) {
+        const { workingDays } = calculateWorkdayOverdueDays(sDate, eDate);
+        if (workingDays > 0) {
+          validDays.push(workingDays);
+        }
+      }
+    });
+    if (validDays.length === 0) return { avg: null, count: 0 };
+    const sum = validDays.reduce((a, b) => a + b, 0);
+    return {
+      avg: (sum / validDays.length).toFixed(1),
+      count: validDays.length
+    };
+  }, [cases]);
 
   // 方案 A: 支援同個案多派案碼別 (dispatches 陣列)
   const createDefaultDispatchItem = (base = {}) => {
@@ -454,6 +484,7 @@ export default function CaseForm({ activeCase, onClose }) {
           approvalDate,
           deadlineDate,
           submitDate,
+          completionDays: currentCompletionDays,
           status: isOvertime ? '超時效' : '時效內',
           delayReason: isOvertime ? delayReason : '',
           followUpStatus,
@@ -1010,6 +1041,56 @@ export default function CaseForm({ activeCase, onClose }) {
                   onPaste={handleDatePaste(setSubmitDate, 'datetime-local')}
                   className="w-full border border-slate-250 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#64748b]"
                 />
+              </div>
+
+              {/* Card 5：完成天數 (系統自動計算) */}
+              <div className="bg-[#ecfdf5] border border-emerald-200 rounded-xl p-4 shadow-sm border-l-[6px] border-[#10b981]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="block text-xs font-bold text-emerald-950">
+                    5. 完成工作天數 (系統自動計算)
+                  </span>
+                  <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-700 font-bold border border-emerald-300">
+                    初評督導核定 ➔ 審核通過
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1.5 py-1">
+                  <span className="text-xl font-extrabold tracking-wide text-emerald-700 font-mono">
+                    {currentCompletionDays !== null ? currentCompletionDays : '--'}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-800">工作天</span>
+                  {currentCompletionDays === null ? (
+                    <span className="text-xs text-slate-400 font-normal ml-2">
+                      (待填寫初評核定日與審核通過日)
+                    </span>
+                  ) : (
+                    <span className="text-xs text-emerald-600 font-medium ml-2">
+                      (扣除例假日與國定假日)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 6：平均天數 (全系統所有資料統計) */}
+              <div className="bg-[#f0f9ff] border border-sky-200 rounded-xl p-4 shadow-sm border-l-[6px] border-[#0284c7]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="block text-xs font-bold text-sky-950">
+                    6. 全案平均完成天數 (系統統計)
+                  </span>
+                  <span className="text-[10px] bg-sky-100 px-1.5 py-0.5 rounded text-sky-700 font-bold border border-sky-300">
+                    所有資料平均
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1.5 py-1">
+                  <span className="text-xl font-extrabold tracking-wide text-sky-700 font-mono">
+                    {averageCompletionStats.avg !== null ? averageCompletionStats.avg : '--'}
+                  </span>
+                  <span className="text-xs font-bold text-sky-800">工作天</span>
+                  {averageCompletionStats.count > 0 && (
+                    <span className="text-xs text-sky-700 font-medium ml-2">
+                      (共採計 {averageCompletionStats.count} 筆已完成案件)
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             

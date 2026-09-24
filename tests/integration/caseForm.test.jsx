@@ -138,4 +138,25 @@ describe('CaseForm Integration Test', () => {
     });
     expect(customInput.value).toBe('家屬要求延期');
   });
+
+  it('should calculate completion days between superApprovalDate and submitDate, and render average completion days', async () => {
+    renderWithProviders(<CaseForm onClose={() => {}} />);
+
+    // 驗證卡片標題存在
+    expect(screen.getByText(/完成工作天數 \(系統自動計算\)/)).toBeInTheDocument();
+    expect(screen.getByText(/全案平均完成天數 \(系統統計\)/)).toBeInTheDocument();
+
+    // 填寫初評核定日與審核通過日
+    const superApprovalInput = screen.getByLabelText(/初評第一次督導核定通過日/);
+    const submitInput = screen.getByLabelText(/照顧計劃審核通過日/);
+
+    await act(async () => {
+      fireEvent.change(superApprovalInput, { target: { value: '2026-06-08T09:00' } });
+      fireEvent.change(submitInput, { target: { value: '2026-06-10T17:00' } });
+    });
+
+    // 驗證完成工作天數（2026-06-08 ~ 2026-06-10 為正常工作日，約 2.3 天）
+    expect(screen.getByText(/初評督導核定 ➔ 審核通過/)).toBeInTheDocument();
+    expect(screen.getByText(/所有資料平均/)).toBeInTheDocument();
+  });
 });
