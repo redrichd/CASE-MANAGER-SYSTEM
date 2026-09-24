@@ -1429,23 +1429,8 @@ export default function CaseForm({ activeCase, onClose }) {
                       />
                     </div>
 
-                    {/* 異常事項 (品質類別) */}
-                    <div className="col-span-1 md:col-span-2">
-                      <label htmlFor={`anomalyCategory_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5">
-                        異常事項 (品質類別)
-                      </label>
-                      <input
-                        id={`anomalyCategory_${idx}`}
-                        type="text"
-                        value={disp.anomalyCategory}
-                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyCategory', e.target.value)}
-                        placeholder="文字備註，若無則空白..."
-                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      />
-                    </div>
-
                     {/* 異常內容摘述 - 下拉選單：無人力、配合案家時間、其他。若選擇其他，則提供空白欄位手動輸入 */}
-                    <div className="col-span-1 md:col-span-3">
+                    <div className="col-span-1 md:col-span-2">
                       <label htmlFor={`anomalySummarySelect_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5 flex items-center gap-1">
                         異常內容摘述
                         {disp.anomalyReasonType && <span className="text-rose-500 font-extrabold">*必填</span>}
