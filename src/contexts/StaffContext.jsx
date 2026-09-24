@@ -12,10 +12,10 @@ const initialStaff = [
   { empId: '857', name: '葉湘芸', gender: 'F', area: '新莊區', title: '個管員' },
   { empId: '863', name: '黃凱琳', gender: 'F', area: '新莊區', title: '個管員' },
   { empId: '891', name: '王昱昕', gender: 'M', area: '', title: '督導' },
-  { empId: '908', name: '林依珊', gender: 'F', area: '三蘆區', title: '個管員' },
-  { empId: '913', name: '傅韶揚', gender: 'M', area: '三蘆區', title: '個管員' },
-  { empId: '915', name: '楊文慧', gender: 'F', area: '三蘆區', title: '個管員' },
-  { empId: '930', name: '龐豫',   gender: 'F', area: '三蘆區', title: '個管員' }
+  { empId: '908', name: '林依珊', gender: 'F', area: '三重區', title: '個管員' },
+  { empId: '913', name: '傅韶揚', gender: 'M', area: '三重區', title: '個管員' },
+  { empId: '915', name: '楊文慧', gender: 'F', area: '三重區', title: '個管員' },
+  { empId: '930', name: '龐豫',   gender: 'F', area: '三重區', title: '個管員' }
 ];
 
 export function StaffProvider({ children }) {
@@ -23,8 +23,8 @@ export function StaffProvider({ children }) {
     const local = localStorage.getItem('local_staff_list');
     if (local) {
       const parsed = JSON.parse(local);
-      // 自動合併 initialStaff，確保本機與離線狀態也能看到新名單
-      const merged = [...parsed];
+      // 自動合併 initialStaff，確保本機與離線狀態也能看到新名單，並將三蘆區搬遷為三重區
+      const merged = parsed.map(s => s.area === '三蘆區' ? { ...s, area: '三重區' } : s);
       let updated = false;
       for (const s of initialStaff) {
         if (!merged.some(m => m.empId === s.empId || m.name === s.name)) {
@@ -32,7 +32,7 @@ export function StaffProvider({ children }) {
           updated = true;
         }
       }
-      if (updated) {
+      if (updated || JSON.stringify(merged) !== local) {
         merged.sort((a, b) => a.empId.localeCompare(b.empId));
         localStorage.setItem('local_staff_list', JSON.stringify(merged));
       }
@@ -43,7 +43,15 @@ export function StaffProvider({ children }) {
 
   const [areas, setAreas] = useState(() => {
     const local = localStorage.getItem('local_areas');
-    return local ? JSON.parse(local) : ['新莊區', '三蘆區', '板中永區'];
+    if (local) {
+      const parsed = JSON.parse(local);
+      const migrated = parsed.map(a => a === '三蘆區' ? '三重區' : a);
+      if (JSON.stringify(migrated) !== local) {
+        localStorage.setItem('local_areas', JSON.stringify(migrated));
+      }
+      return migrated;
+    }
+    return ['新莊區', '三重區', '板中永區'];
   });
 
   useEffect(() => {

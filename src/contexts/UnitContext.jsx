@@ -6,18 +6,29 @@ import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } fr
 const UnitContext = createContext();
 
 const initialUnits = [
-  { id: 'U001', name: '大同居家照顧服務所', services: ['BA'], serviceAreas: ['新莊區', '三蘆區', '板中永區'], isStopped: false, comments: [] },
-  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'DA'], serviceAreas: ['新莊區', '三蘆區'], isStopped: false, comments: [] },
+  { id: 'U001', name: '大同居家照顧服務所', services: ['BA'], serviceAreas: ['新莊區', '三重區', '板中永區'], isStopped: false, comments: [] },
+  { id: 'U002', name: '中山長照居家機構', services: ['BA', 'DA'], serviceAreas: ['新莊區', '三重區'], isStopped: false, comments: [] },
   { id: 'U003', name: '萬華社區關懷協會', services: ['BA'], serviceAreas: ['新莊區'], isStopped: false, comments: [] },
-  { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], serviceAreas: ['三蘆區', '板中永區'], isStopped: false, comments: [] },
+  { id: 'U004', name: '大安居家喘息服務處', services: ['DA'], serviceAreas: ['三重區', '板中永區'], isStopped: false, comments: [] },
   { id: 'U005', name: '信義停派居家機構', services: ['BA', 'DA'], serviceAreas: ['板中永區'], isStopped: true, comments: [] },
-  { id: 'U007', name: '悠康事業有限公司附設新北市私立悠康居家長照機構', services: ['BA', 'GA09', 'SC09'], serviceAreas: ['新莊區', '三蘆區', '板中永區'], isStopped: false, comments: [], rating: 3 },
+  { id: 'U007', name: '悠康事業有限公司附設新北市私立悠康居家長照機構', services: ['BA', 'GA09', 'SC09'], serviceAreas: ['新莊區', '三重區', '板中永區'], isStopped: false, comments: [], rating: 3 },
 ];
 
 export function UnitProvider({ children }) {
   const [units, setUnits] = useState(() => {
     const local = localStorage.getItem('local_units');
-    return local ? JSON.parse(local) : initialUnits;
+    if (local) {
+      const parsed = JSON.parse(local);
+      const migrated = parsed.map(u => ({
+        ...u,
+        serviceAreas: (u.serviceAreas || ['新莊區', '三重區', '板中永區']).map(a => a === '三蘆區' ? '三重區' : a)
+      }));
+      if (JSON.stringify(migrated) !== local) {
+        localStorage.setItem('local_units', JSON.stringify(migrated));
+      }
+      return migrated;
+    }
+    return initialUnits;
   });
 
   useEffect(() => {
@@ -53,7 +64,10 @@ export function UnitProvider({ children }) {
               unitChanged = true;
             }
             if (!data.serviceAreas || !Array.isArray(data.serviceAreas)) {
-              updatedUnit.serviceAreas = ['新莊區', '三蘆區', '板中永區'];
+              updatedUnit.serviceAreas = ['新莊區', '三重區', '板中永區'];
+              unitChanged = true;
+            } else if (data.serviceAreas.includes('三蘆區')) {
+              updatedUnit.serviceAreas = data.serviceAreas.map(a => a === '三蘆區' ? '三重區' : a);
               unitChanged = true;
             }
 
@@ -174,7 +188,7 @@ export function UnitProvider({ children }) {
     const formattedUnit = {
       ...newUnit,
       id: newId,
-      serviceAreas: newUnit.serviceAreas || ['新莊區', '三蘆區', '板中永區'],
+      serviceAreas: newUnit.serviceAreas || ['新莊區', '三重區', '板中永區'],
       isStopped: newUnit.isStopped || false,
       comments: newUnit.comments || [],
       rating: newUnit.rating || 0,

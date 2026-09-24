@@ -48,39 +48,56 @@ export default function Units() {
   // 新單位表單狀態
   const [newName, setNewName] = useState('');
   const [newServices, setNewServices] = useState(['BA']);
-  const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三蘆區', '板中永區']);
+  const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三重區', '板中永區']);
   const [newIsStopped, setNewIsStopped] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newAuthor, setNewAuthor] = useState('');
   const [newComment, setNewComment] = useState('');
 
-  // 篩選狀態
-  const [selectedServiceFilter, setSelectedServiceFilter] = useState('ALL');
+  // 篩選狀態 (支援複選)
+  const [selectedServiceFilters, setSelectedServiceFilters] = useState(['ALL']);
   const [selectedAreaFilter, setSelectedAreaFilter] = useState('ALL');
 
-  // 根據選擇的服務類別來過濾 cases 作為統計底數
+  const handleToggleServiceFilter = (key) => {
+    setSelectedServiceFilters((prev) => {
+      if (key === 'ALL') {
+        return ['ALL'];
+      }
+      const withoutAll = prev.filter((k) => k !== 'ALL');
+      if (withoutAll.includes(key)) {
+        const next = withoutAll.filter((k) => k !== key);
+        return next.length === 0 ? ['ALL'] : next;
+      } else {
+        return [...withoutAll, key];
+      }
+    });
+  };
+
+  // 根據選擇的服務類別來過濾 cases 作為統計底數 (支援複選聯集)
   const getFilteredCasesForStats = () => {
-    if (selectedServiceFilter === 'ALL') {
+    if (selectedServiceFilters.includes('ALL')) {
       return cases;
     }
     return cases.filter((c) => {
       const code = c.serviceContent;
-      if (selectedServiceFilter === 'BA') return code === 'BA';
-      if (selectedServiceFilter === 'BB') return code === 'BB';
-      if (selectedServiceFilter === 'BC') return code === 'BC';
-      if (selectedServiceFilter === 'CA') return code === 'CA';
-      if (selectedServiceFilter === 'CB') return code === 'CB';
-      if (selectedServiceFilter === 'CC') return code === 'CC';
-      if (selectedServiceFilter === 'CD') return code === 'CD';
-      if (selectedServiceFilter === 'DA') return code === 'DA';
-      if (selectedServiceFilter === 'GA09') return code === 'GA09';
-      if (selectedServiceFilter === 'GA03_04') return code === 'GA03' || code === 'GA04';
-      if (selectedServiceFilter === 'GA05') return code === 'GA05';
-      if (selectedServiceFilter === 'GA06') return code === 'GA06';
-      if (selectedServiceFilter === 'GA07') return code === 'GA07';
-      if (selectedServiceFilter === 'SC09') return code === 'SC09';
-      if (selectedServiceFilter === '轉介') return code === '轉介' || code?.startsWith('轉介_') || c.recordCategory === 'referral';
-      return false;
+      return selectedServiceFilters.some((filterKey) => {
+        if (filterKey === 'BA') return code === 'BA';
+        if (filterKey === 'BB') return code === 'BB';
+        if (filterKey === 'BC') return code === 'BC';
+        if (filterKey === 'CA') return code === 'CA';
+        if (filterKey === 'CB') return code === 'CB';
+        if (filterKey === 'CC') return code === 'CC';
+        if (filterKey === 'CD') return code === 'CD';
+        if (filterKey === 'DA') return code === 'DA';
+        if (filterKey === 'GA09') return code === 'GA09';
+        if (filterKey === 'GA03_04') return code === 'GA03' || code === 'GA04';
+        if (filterKey === 'GA05') return code === 'GA05';
+        if (filterKey === 'GA06') return code === 'GA06';
+        if (filterKey === 'GA07') return code === 'GA07';
+        if (filterKey === 'SC09') return code === 'SC09';
+        if (filterKey === '轉介') return code === '轉介' || code?.startsWith('轉介_') || c.recordCategory === 'referral';
+        return false;
+      });
     });
   };
 
@@ -88,21 +105,24 @@ export default function Units() {
   const filteredCasesForStats = getFilteredCasesForStats();
   const statsUnits = calculateUnitStats(units, filteredCasesForStats);
 
-  // 2. 根據選擇的區域與服務類別，過濾單位
+  // 2. 根據選擇的區域與服務類別，過濾單位 (支援複選聯集)
   const serviceFilteredUnits = statsUnits.filter((u) => {
     if (selectedAreaFilter !== 'ALL') {
       if (!u.serviceAreas || !u.serviceAreas.includes(selectedAreaFilter)) {
         return false;
       }
     }
-    if (selectedServiceFilter === 'ALL') return true;
-    if (selectedServiceFilter === 'GA03_04') {
-      return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
-    }
-    if (selectedServiceFilter === '轉介') {
-      return u.services && (u.services.includes('轉介') || u.services.includes('REFERRAL'));
-    }
-    return u.services && u.services.includes(selectedServiceFilter);
+    if (selectedServiceFilters.includes('ALL')) return true;
+
+    return selectedServiceFilters.some((filterKey) => {
+      if (filterKey === 'GA03_04') {
+        return u.services && (u.services.includes('GA03') || u.services.includes('GA04'));
+      }
+      if (filterKey === '轉介') {
+        return u.services && (u.services.includes('轉介') || u.services.includes('REFERRAL'));
+      }
+      return u.services && u.services.includes(filterKey);
+    });
   });
 
   const sortedUnits = sortUnits(serviceFilteredUnits);
@@ -138,7 +158,7 @@ export default function Units() {
     // 重設狀態
     setNewName('');
     setNewServices(['BA']);
-    setNewServiceAreas(['新莊區', '三蘆區', '板中永區']);
+    setNewServiceAreas(['新莊區', '三重區', '板中永區']);
     setNewIsStopped(false);
     setNewRating(0);
     setNewAuthor('');
@@ -287,16 +307,17 @@ export default function Units() {
         <div>
           <div className="text-xs font-bold text-slate-500 mb-2.5 flex items-center gap-1.5">
             <span>🏷️ 統計服務類別篩選：</span>
+            <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">可複選</span>
             <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-medium">切換後僅統計該服務的數據且僅顯示提供該服務的單位</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {SERVICE_FILTERS.map((f) => {
-              const isActive = selectedServiceFilter === f.key;
+              const isActive = selectedServiceFilters.includes(f.key);
               return (
                 <button
                   key={f.key}
                   type="button"
-                  onClick={() => setSelectedServiceFilter(f.key)}
+                  onClick={() => handleToggleServiceFilter(f.key)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer shadow-sm ${
                     isActive
                       ? 'bg-purple-600 border-purple-600 text-white shadow-purple-600/10'

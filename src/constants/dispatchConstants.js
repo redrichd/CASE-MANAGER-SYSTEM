@@ -33,7 +33,7 @@ export const SERVICE_CONTENTS = [
 
 export const SERVICE_AREAS = [
   "新莊區",
-  "三蘆區",
+  "三重區",
   "板中永區",
 ];
 

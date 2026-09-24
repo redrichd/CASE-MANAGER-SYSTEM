@@ -198,5 +198,44 @@ describe('Units Page Integration Test', () => {
     // U003 unit should be removed from the DOM
     expect(screen.queryByText('萬華社區關懷協會')).not.toBeInTheDocument();
   });
+
+  it('should display 三重區 instead of 三蘆區 in service areas, and support multi-selecting service filters', async () => {
+    renderWithProviders(<Units />);
+
+    // 驗證服務區域篩選包含「三重區」且不包含「三蘆區」
+    expect(screen.getByRole('button', { name: '三重區' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '三蘆區' })).not.toBeInTheDocument();
+
+    // 驗證新增 Modal 裡面的服務區域也是「三重區」
+    const addBtn = screen.getByRole('button', { name: /新增合作單位/ });
+    await act(async () => {
+      fireEvent.click(addBtn);
+    });
+    expect(screen.getByLabelText('三重區')).toBeInTheDocument();
+    expect(screen.queryByLabelText('三蘆區')).not.toBeInTheDocument();
+
+    // 關閉 Modal
+    const cancelBtn = screen.getByRole('button', { name: '取消' });
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    // 驗證統計服務類別篩選支援複選
+    const baFilterBtn = screen.getByRole('button', { name: /居服 \(BA\)/ });
+    const daFilterBtn = screen.getByRole('button', { name: /交通 \(DA\)/ });
+
+    // 點選 BA
+    await act(async () => {
+      fireEvent.click(baFilterBtn);
+    });
+    expect(baFilterBtn.className).toContain('bg-purple-600');
+
+    // 複選點選 DA
+    await act(async () => {
+      fireEvent.click(daFilterBtn);
+    });
+    expect(baFilterBtn.className).toContain('bg-purple-600');
+    expect(daFilterBtn.className).toContain('bg-purple-600');
+  });
 });
 

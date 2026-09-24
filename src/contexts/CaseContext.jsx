@@ -44,7 +44,7 @@ const initialCases = [
     name: '李美華',
     gender: 'F',
     supervisor: '張個管',
-    area: '三蘆區',
+    area: '三重區',
     date: '2026/05/25',
     superApprovalDate: '2026-05-25T14:00',
     approvalDate: '2026-05-25T14:00',
@@ -158,7 +158,12 @@ const sanitizeCases = (list) => {
     if (!seenKeys.has(sigKey)) {
       seenKeys.set(sigKey, true);
       const _recordId = item._recordId || `${item.id}_${item.serviceContent || 'default'}_${index}_${Math.random().toString(36).substr(2, 5)}`;
-      cleanList.push({ ...item, _recordId });
+      const cleanItem = {
+        ...item,
+        area: item.area === '三蘆區' ? '三重區' : item.area,
+        _recordId
+      };
+      cleanList.push(cleanItem);
     }
   });
 

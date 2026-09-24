@@ -89,4 +89,53 @@ describe('CaseForm Integration Test', () => {
     });
     expect(screen.getByText(/照會日不可早於審核通過日 \(2026-07-06\)/)).toBeInTheDocument();
   });
+
+  it('should auto-calculate overdue days based on aUnitNotifyDate and firstServiceDate, and support anomaly summary dropdown with custom input', async () => {
+    renderWithProviders(<CaseForm onClose={() => {}} />);
+
+    // 驗證「服務單位回復日期」已被移除
+    expect(screen.queryByText(/服務單位回復日期/)).not.toBeInTheDocument();
+
+    // 驗證第 1 項首次服務日期與第 2 項超過天數
+    expect(screen.getByText(/首次服務日期 \(實際進場日\)/)).toBeInTheDocument();
+    expect(screen.getByText(/超過天數 \(系統自動計算\)/)).toBeInTheDocument();
+
+    // 設定 A單位照會服務單位日
+    const notifyInput = screen.getByLabelText(/A單位照會服務單位日/);
+    await act(async () => {
+      fireEvent.change(notifyInput, { target: { value: '2026-06-08T09:00' } });
+    });
+
+    // 設定首次服務日期
+    const firstServiceInput = screen.getByLabelText(/首次服務日期/);
+    await act(async () => {
+      fireEvent.change(firstServiceInput, { target: { value: '2026-06-15T09:00' } });
+    });
+
+    // 驗證自動計算超過天數 (超過 4.5 天會顯示警告與天數)
+    expect(screen.getByText(/已超過 4.5 天進場/)).toBeInTheDocument();
+
+    // 驗證原因分類選擇
+    const reasonSelect = screen.getByLabelText(/原因分類/);
+    await act(async () => {
+      fireEvent.change(reasonSelect, { target: { value: '案家' } });
+    });
+
+    // 必填提示出現
+    expect(screen.getAllByText(/\*必填/).length).toBeGreaterThanOrEqual(2);
+
+    // 驗證異常內容摘述下拉選單選「其他」時出現手動輸入框
+    const anomalySummarySelect = screen.getByLabelText(/異常內容摘述/);
+    await act(async () => {
+      fireEvent.change(anomalySummarySelect, { target: { value: '其他' } });
+    });
+
+    const customInput = screen.getByPlaceholderText(/請手動輸入異常內容摘述/);
+    expect(customInput).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(customInput, { target: { value: '家屬要求延期' } });
+    });
+    expect(customInput.value).toBe('家屬要求延期');
+  });
 });

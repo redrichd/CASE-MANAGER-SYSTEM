@@ -7,7 +7,9 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
   const { updateUnit, addComment } = useUnits();
   const [name, setName] = useState(unit?.name || '');
   const [services, setServices] = useState(unit?.services || []);
-  const [serviceAreas, setServiceAreas] = useState(unit?.serviceAreas || ['新莊區', '三蘆區', '板中永區']);
+  const [serviceAreas, setServiceAreas] = useState(
+    (unit?.serviceAreas || ['新莊區', '三重區', '板中永區']).map(a => a === '三蘆區' ? '三重區' : a)
+  );
   const [isStopped, setIsStopped] = useState(unit?.isStopped || false);
   const [rating, setRating] = useState(unit?.rating || 0);
   const [author, setAuthor] = useState('');

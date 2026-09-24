@@ -39,25 +39,40 @@ export default function CaseForm({ activeCase, onClose }) {
   const relatedCases = activeCase ? cases.filter(c => c.id === activeCase.id) : [];
 
   // 方案 A: 支援同個案多派案碼別 (dispatches 陣列)
-  const createDefaultDispatchItem = (base = {}) => ({
-    dispatchType: base.dispatchType || '新案_初評',
-    serviceContent: base.serviceContent || 'BA',
-    bUnitName: base.bUnitName || '',
-    bUnitSearchTerm: base.bUnitName || '',
-    isBUnitDropdownOpen: false,
-    dispatchResult: base.dispatchResult === '案主指定(外單位)' ? '外單位自開案' : (base.dispatchResult || ''),
-    secondRoundReason: base.secondRoundReason || '',
-    aUnitNotifyDate: base.aUnitNotifyDate || '',
-    bUnitStartDate: base.bUnitStartDate || '',
-    bUnitReplyDate: base.bUnitReplyDate || '',
-    firstServiceDate: base.firstServiceDate || '',
-    overdueDays: base.overdueDays !== undefined && base.overdueDays !== null ? base.overdueDays : '',
-    anomalyReasonType: base.anomalyReasonType || '',
-    anomalyDate: base.anomalyDate || '',
-    anomalyCategory: base.anomalyCategory || '',
-    anomalySummary: base.anomalySummary || '',
-    isUnitCounseling: base.isUnitCounseling || false,
-  });
+  const createDefaultDispatchItem = (base = {}) => {
+    let overdueDays = base.overdueDays !== undefined && base.overdueDays !== null ? base.overdueDays : '';
+    if (overdueDays === '' && base.aUnitNotifyDate && base.firstServiceDate) {
+      const { overdueDays: calcDays } = calculateWorkdayOverdueDays(base.aUnitNotifyDate, base.firstServiceDate, 4.5);
+      overdueDays = calcDays;
+    }
+
+    const anomalySummaryOption = base.anomalySummaryOption || (
+      ['無人力', '配合案家時間'].includes(base.anomalySummary)
+        ? base.anomalySummary
+        : (base.anomalySummary ? '其他' : '')
+    );
+
+    return {
+      dispatchType: base.dispatchType || '新案_初評',
+      serviceContent: base.serviceContent || 'BA',
+      bUnitName: base.bUnitName || '',
+      bUnitSearchTerm: base.bUnitName || '',
+      isBUnitDropdownOpen: false,
+      dispatchResult: base.dispatchResult === '案主指定(外單位)' ? '外單位自開案' : (base.dispatchResult || ''),
+      secondRoundReason: base.secondRoundReason || '',
+      aUnitNotifyDate: base.aUnitNotifyDate || '',
+      bUnitStartDate: base.bUnitStartDate || '',
+      bUnitReplyDate: base.bUnitReplyDate || '',
+      firstServiceDate: base.firstServiceDate || '',
+      overdueDays,
+      anomalyReasonType: base.anomalyReasonType || '',
+      anomalyDate: base.anomalyDate || '',
+      anomalyCategory: base.anomalyCategory || '',
+      anomalySummary: base.anomalySummary || '',
+      anomalySummaryOption,
+      isUnitCounseling: base.isUnitCounseling || false,
+    };
+  };
 
   const initialDispatches = (() => {
     if (relatedCases.length > 0) {
@@ -76,12 +91,12 @@ export default function CaseForm({ activeCase, onClose }) {
       const next = [...prev];
       const currentItem = { ...next[index], [field]: value };
 
-      // 自動計算超過天數 (依據服務單位回覆日與首次服務日期計算，扣除例假日與國定假日，超過 4.5 天提示異常)
-      if (field === 'bUnitReplyDate' || field === 'firstServiceDate') {
-        const bUnitReplyDate = field === 'bUnitReplyDate' ? value : currentItem.bUnitReplyDate;
+      // 自動計算超過天數 (依據圖三的A單位照會服務單位日與首次服務日期計算，扣除例假日與國定假日，超過 4.5 天提示異常)
+      if (field === 'aUnitNotifyDate' || field === 'firstServiceDate') {
+        const aUnitNotifyDate = field === 'aUnitNotifyDate' ? value : currentItem.aUnitNotifyDate;
         const firstServiceDate = field === 'firstServiceDate' ? value : currentItem.firstServiceDate;
-        if (bUnitReplyDate && firstServiceDate) {
-          const { overdueDays: calcDays } = calculateWorkdayOverdueDays(bUnitReplyDate, firstServiceDate, 4.5);
+        if (aUnitNotifyDate && firstServiceDate) {
+          const { overdueDays: calcDays } = calculateWorkdayOverdueDays(aUnitNotifyDate, firstServiceDate, 4.5);
           currentItem.overdueDays = calcDays;
         }
       }
@@ -344,6 +359,17 @@ export default function CaseForm({ activeCase, onClose }) {
         if (reasonRequiredResults.includes(disp.dispatchResult) && !disp.secondRoundReason.trim()) {
           alert(`第 ${i + 1} 筆碼別派案結果為「${disp.dispatchResult}」，必須填寫原因/備註！`);
           return;
+        }
+        // 當有點選原因分類，則異常發生日和異常內容摘述必填
+        if (disp.anomalyReasonType && disp.anomalyReasonType.trim() !== '') {
+          if (!disp.anomalyDate || !disp.anomalyDate.trim()) {
+            alert(`第 ${i + 1} 筆碼別已點選原因分類「${disp.anomalyReasonType}」，請填寫「異常發生日」！`);
+            return;
+          }
+          if (!disp.anomalySummary || !disp.anomalySummary.trim()) {
+            alert(`第 ${i + 1} 筆碼別已點選原因分類「${disp.anomalyReasonType}」，請填寫「異常內容摘述」！`);
+            return;
+          }
         }
       }
 
@@ -1320,29 +1346,14 @@ export default function CaseForm({ activeCase, onClose }) {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* 第 1 順位：服務單位回復日期 (單位回覆日) - 改為 datetime-local */}
+                    {/* 第 1 順位：首次服務日期 (實際進場日) - 改為 datetime-local */}
                     <div>
-                      <label className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
+                      <label htmlFor={`firstServiceDate_${idx}`} className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
                         <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">1</span>
-                        服務單位回復日期 (單位回覆日)
-                      </label>
-                      <input
-                        type="datetime-local"
-                        step="1"
-                        value={disp.bUnitReplyDate}
-                        onChange={(e) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', e.target.value)}
-                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'bUnitReplyDate', val), 'datetime-local')}
-                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      />
-                    </div>
-
-                    {/* 第 2 順位：首次服務日期 (實際進場日) - 改為 datetime-local */}
-                    <div>
-                      <label className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
-                        <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">2</span>
                         首次服務日期 (實際進場日)
                       </label>
                       <input
+                        id={`firstServiceDate_${idx}`}
                         type="datetime-local"
                         step="1"
                         value={disp.firstServiceDate}
@@ -1352,44 +1363,14 @@ export default function CaseForm({ activeCase, onClose }) {
                       />
                     </div>
 
-                    {/* 原因分類 */}
+                    {/* 第 2 順位：超過天數 (系統自動計算) */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                        原因分類 (案家 / 個案 / 單位 / 其他)
-                      </label>
-                      <select
-                        value={disp.anomalyReasonType}
-                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyReasonType', e.target.value)}
-                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      >
-                        <option value="">-- 無異常 --</option>
-                        <option value="案家">案家</option>
-                        <option value="個案">個案</option>
-                        <option value="單位">單位</option>
-                        <option value="其他">其他</option>
-                      </select>
-                    </div>
-
-                    {/* 異常發生日 (設定日期) */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
-                        異常發生日 (設定日期)
-                      </label>
-                      <input
-                        type="date"
-                        value={disp.anomalyDate}
-                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyDate', e.target.value)}
-                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'anomalyDate', val), 'date')}
-                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      />
-                    </div>
-
-                    {/* 超過天數 (自動計算工作天並提示異常) */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                      <label htmlFor={`overdueDays_${idx}`} className="block text-xs font-bold text-sky-950 mb-1.5 flex items-center gap-1">
+                        <span className="bg-sky-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">2</span>
                         超過天數 (系統自動計算)
                       </label>
                       <input
+                        id={`overdueDays_${idx}`}
                         type="number"
                         step="0.1"
                         min="0"
@@ -1409,12 +1390,52 @@ export default function CaseForm({ activeCase, onClose }) {
                       )}
                     </div>
 
-                    {/* 異常事項 (品質類別) */}
+                    {/* 第 3 順位：原因分類 */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                      <label htmlFor={`anomalyReasonType_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5 flex items-center gap-1">
+                        原因分類 (案家 / 個案 / 單位 / 其他)
+                      </label>
+                      <select
+                        id={`anomalyReasonType_${idx}`}
+                        value={disp.anomalyReasonType}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyReasonType', e.target.value)}
+                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      >
+                        <option value="">-- 無異常 --</option>
+                        <option value="案家">案家</option>
+                        <option value="個案">個案</option>
+                        <option value="單位">單位</option>
+                        <option value="其他">其他</option>
+                      </select>
+                    </div>
+
+                    {/* 異常發生日 (設定日期) - 有原因分類則必填 */}
+                    <div>
+                      <label htmlFor={`anomalyDate_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5 flex items-center gap-1">
+                        異常發生日 (設定日期)
+                        {disp.anomalyReasonType && <span className="text-rose-500 font-extrabold">*必填</span>}
+                      </label>
+                      <input
+                        id={`anomalyDate_${idx}`}
+                        type="date"
+                        value={disp.anomalyDate}
+                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyDate', e.target.value)}
+                        onPaste={handleDatePaste((val) => handleUpdateDispatchItem(idx, 'anomalyDate', val), 'date')}
+                        className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                          disp.anomalyReasonType && !disp.anomalyDate
+                            ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/20'
+                            : 'border-slate-250 focus:ring-sky-500'
+                        }`}
+                      />
+                    </div>
+
+                    {/* 異常事項 (品質類別) */}
+                    <div className="col-span-1 md:col-span-2">
+                      <label htmlFor={`anomalyCategory_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5">
                         異常事項 (品質類別)
                       </label>
                       <input
+                        id={`anomalyCategory_${idx}`}
                         type="text"
                         value={disp.anomalyCategory}
                         onChange={(e) => handleUpdateDispatchItem(idx, 'anomalyCategory', e.target.value)}
@@ -1423,18 +1444,59 @@ export default function CaseForm({ activeCase, onClose }) {
                       />
                     </div>
 
-                    {/* 異常內容摘述 */}
+                    {/* 異常內容摘述 - 下拉選單：無人力、配合案家時間、其他。若選擇其他，則提供空白欄位手動輸入 */}
                     <div className="col-span-1 md:col-span-3">
-                      <label className="block text-xs font-bold text-slate-650 mb-1.5">
+                      <label htmlFor={`anomalySummarySelect_${idx}`} className="block text-xs font-bold text-slate-650 mb-1.5 flex items-center gap-1">
                         異常內容摘述
+                        {disp.anomalyReasonType && <span className="text-rose-500 font-extrabold">*必填</span>}
                       </label>
-                      <textarea
-                        rows={2}
-                        value={disp.anomalySummary}
-                        onChange={(e) => handleUpdateDispatchItem(idx, 'anomalySummary', e.target.value)}
-                        placeholder="文字備註，若無則空白..."
-                        className="w-full rounded-lg border border-slate-250 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      />
+                      <div className="space-y-2">
+                        <select
+                          id={`anomalySummarySelect_${idx}`}
+                          value={
+                            ['無人力', '配合案家時間'].includes(disp.anomalySummary)
+                              ? disp.anomalySummary
+                              : (disp.anomalySummaryOption || (disp.anomalySummary ? '其他' : ''))
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '其他') {
+                              handleUpdateDispatchItem(idx, 'anomalySummaryOption', '其他');
+                              if (['無人力', '配合案家時間'].includes(disp.anomalySummary)) {
+                                handleUpdateDispatchItem(idx, 'anomalySummary', '');
+                              }
+                            } else {
+                              handleUpdateDispatchItem(idx, 'anomalySummaryOption', val);
+                              handleUpdateDispatchItem(idx, 'anomalySummary', val);
+                            }
+                          }}
+                          className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                            disp.anomalyReasonType && !disp.anomalySummary
+                              ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/20'
+                              : 'border-slate-250 focus:ring-sky-500'
+                          }`}
+                        >
+                          <option value="">-- 請選擇 --</option>
+                          <option value="無人力">無人力</option>
+                          <option value="配合案家時間">配合案家時間</option>
+                          <option value="其他">其他</option>
+                        </select>
+
+                        {(disp.anomalySummaryOption === '其他' || (!['無人力', '配合案家時間', ''].includes(disp.anomalySummary) && disp.anomalySummary)) && (
+                          <input
+                            id={`anomalySummaryCustom_${idx}`}
+                            type="text"
+                            value={disp.anomalySummary || ''}
+                            onChange={(e) => handleUpdateDispatchItem(idx, 'anomalySummary', e.target.value)}
+                            placeholder="請手動輸入異常內容摘述..."
+                            className={`w-full rounded-lg border px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 ${
+                              disp.anomalyReasonType && !disp.anomalySummary?.trim()
+                                ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/20'
+                                : 'border-slate-250 focus:ring-sky-500'
+                            }`}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
