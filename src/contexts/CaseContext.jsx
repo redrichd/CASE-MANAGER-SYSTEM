@@ -77,7 +77,7 @@ const initialCases = [
     name: '張大同',
     gender: 'M',
     supervisor: '陳個管',
-    area: '板中永區',
+    area: '永和區',
     date: '2026/06/02',
     superApprovalDate: '2026-06-02T15:00',
     approvalDate: '2026-06-02T15:00',
@@ -160,7 +160,7 @@ const sanitizeCases = (list) => {
       const _recordId = item._recordId || `${item.id}_${item.serviceContent || 'default'}_${index}_${Math.random().toString(36).substr(2, 5)}`;
       const cleanItem = {
         ...item,
-        area: item.area === '三蘆區' ? '三重區' : item.area,
+        area: item.area === '三蘆區' ? '三重區' : (item.area === '板中永區' ? '永和區' : item.area),
         _recordId
       };
       cleanList.push(cleanItem);
@@ -207,9 +207,22 @@ export function CaseProvider({ children }) {
           localStorage.setItem('local_cases', JSON.stringify(seeded));
         } else if (!querySnapshot.empty) {
           const fetchedCases = [];
-          querySnapshot.forEach((doc) => {
-            fetchedCases.push(doc.data());
+          const batch = writeBatch(db);
+          let hasCaseMigration = false;
+          querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.area === '板中永區' || data.area === '三蘆區') {
+              const updatedArea = data.area === '板中永區' ? '永和區' : '三重區';
+              batch.update(docSnap.ref, { area: updatedArea });
+              hasCaseMigration = true;
+              fetchedCases.push({ ...data, area: updatedArea });
+            } else {
+              fetchedCases.push(data);
+            }
           });
+          if (hasCaseMigration) {
+            await batch.commit();
+          }
           const cleaned = sanitizeCases(fetchedCases);
           cleaned.sort((a, b) => a.id.localeCompare(b.id));
           setCases(cleaned);

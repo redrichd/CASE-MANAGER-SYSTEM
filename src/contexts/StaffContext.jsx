@@ -23,8 +23,13 @@ export function StaffProvider({ children }) {
     const local = localStorage.getItem('local_staff_list');
     if (local) {
       const parsed = JSON.parse(local);
-      // 自動合併 initialStaff，確保本機與離線狀態也能看到新名單，並將三蘆區搬遷為三重區
-      const merged = parsed.map(s => s.area === '三蘆區' ? { ...s, area: '三重區' } : s);
+      // 自動合併 initialStaff，確保本機與離線狀態也能看到新名單，並將三蘆區搬遷為三重區、板中永區搬遷為永和區
+      const merged = parsed.map(s => {
+        let updated = { ...s };
+        if (updated.area === '三蘆區') updated.area = '三重區';
+        if (updated.area === '板中永區') updated.area = '永和區';
+        return updated;
+      });
       let updated = false;
       for (const s of initialStaff) {
         if (!merged.some(m => m.empId === s.empId || m.name === s.name)) {
@@ -45,13 +50,14 @@ export function StaffProvider({ children }) {
     const local = localStorage.getItem('local_areas');
     if (local) {
       const parsed = JSON.parse(local);
-      const migrated = parsed.map(a => a === '三蘆區' ? '三重區' : a);
-      if (JSON.stringify(migrated) !== local) {
-        localStorage.setItem('local_areas', JSON.stringify(migrated));
+      const migrated = parsed.map(a => a === '三蘆區' ? '三重區' : (a === '板中永區' ? '永和區' : a));
+      const uniqueMigrated = [...new Set(migrated)];
+      if (JSON.stringify(uniqueMigrated) !== local) {
+        localStorage.setItem('local_areas', JSON.stringify(uniqueMigrated));
       }
-      return migrated;
+      return uniqueMigrated;
     }
-    return ['新莊區', '三重區', '板中永區'];
+    return ['新莊區', '三重區', '永和區'];
   });
 
   useEffect(() => {
@@ -61,14 +67,22 @@ export function StaffProvider({ children }) {
       try {
         const querySnapshot = await getDocs(collection(db, 'staff'));
         
-        // 撈取資料庫目前已有的人員
+        // 撈取資料庫目前已有的人員，同時檢查並遷移舊區域名稱
         const fetchedStaff = [];
-        querySnapshot.forEach((doc) => {
-          fetchedStaff.push(doc.data());
+        const batch = writeBatch(db);
+        let hasStaffMigration = false;
+        querySnapshot.forEach((docSnap) => {
+          const s = docSnap.data();
+          let currentStaff = { ...s };
+          if (currentStaff.area === '板中永區' || currentStaff.area === '三蘆區') {
+            currentStaff.area = currentStaff.area === '板中永區' ? '永和區' : '三重區';
+            batch.set(doc(db, 'staff', currentStaff.empId), currentStaff);
+            hasStaffMigration = true;
+          }
+          fetchedStaff.push(currentStaff);
         });
 
         // 自動合併 initialStaff，如果資料庫中沒有該工號或名字，就寫入（保證不重複且補齊名單）
-        const batch = writeBatch(db);
         let hasNewStaff = false;
         for (const s of initialStaff) {
           const exists = fetchedStaff.some(
@@ -80,7 +94,7 @@ export function StaffProvider({ children }) {
             hasNewStaff = true;
           }
         }
-        if (hasNewStaff) {
+        if (hasNewStaff || hasStaffMigration) {
           await batch.commit();
         }
 

@@ -48,7 +48,7 @@ export default function Units() {
   // 新單位表單狀態
   const [newName, setNewName] = useState('');
   const [newServices, setNewServices] = useState(['BA']);
-  const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三重區', '板中永區']);
+  const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三重區', '永和區']);
   const [newIsStopped, setNewIsStopped] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newAuthor, setNewAuthor] = useState('');
@@ -194,7 +194,7 @@ export default function Units() {
     // 重設狀態
     setNewName('');
     setNewServices(['BA']);
-    setNewServiceAreas(['新莊區', '三重區', '板中永區']);
+    setNewServiceAreas(['新莊區', '三重區', '永和區']);
     setNewIsStopped(false);
     setNewRating(0);
     setNewAuthor('');

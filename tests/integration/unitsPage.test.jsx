@@ -302,5 +302,19 @@ describe('Units Page Integration Test', () => {
     expect(allBtn.className).toContain('bg-indigo-600');
     expect(xinzhuangBtn.className).not.toContain('bg-indigo-600');
   });
+
+  it('should display 永和區 button and filter units correctly', async () => {
+    renderWithProviders(<Units />);
+
+    // 驗證永和區按鈕存在且板中永區按鈕不存在
+    const yongheBtn = screen.getByRole('button', { name: '永和區' });
+    expect(yongheBtn).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '板中永區' })).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(yongheBtn);
+    });
+    expect(yongheBtn.className).toContain('bg-indigo-600');
+  });
 });
 
