@@ -11,6 +11,7 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
     (unit?.serviceAreas || ['新莊區', '三重區', '永和區']).map(a => a === '三蘆區' ? '三重區' : (a === '板中永區' ? '永和區' : a))
   );
   const [isStopped, setIsStopped] = useState(unit?.isStopped || false);
+  const [hasLetterOfIntent, setHasLetterOfIntent] = useState(unit?.hasLetterOfIntent || false);
   const [rating, setRating] = useState(unit?.rating || 0);
   const [author, setAuthor] = useState('');
   const [comment, setComment] = useState('');
@@ -39,7 +40,7 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
       alert(`系統中已存在其他名稱為「${trimmedName}」的合作單位，名稱不可重複！`);
       return;
     }
-    updateUnit(unit.id, { name: trimmedName, services, serviceAreas, isStopped, rating });
+    updateUnit(unit.id, { name: trimmedName, services, serviceAreas, isStopped, hasLetterOfIntent, rating });
     onClose();
   };
 
@@ -141,6 +142,19 @@ export default function UnitEditModal({ unit, isOpen, onClose }) {
                 </label>
               ))}
             </div>
+          </div>
+
+          {/* 意向書簽署 */}
+          <div className="flex items-center gap-2 py-1">
+            <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none font-medium text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={hasLetterOfIntent}
+                onChange={(e) => setHasLetterOfIntent(e.target.checked)}
+                className="w-4 h-4 rounded text-purple-650 focus:ring-purple-500"
+              />
+              意向書簽署
+            </label>
           </div>
 
           {/* 停派設定 */}

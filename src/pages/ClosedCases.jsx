@@ -105,7 +105,7 @@ export default function ClosedCases() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-block px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded text-[10px] font-bold">
-                          {c.serviceContent}
+                          {c.serviceContent?.startsWith('轉介_') ? (c.referralTarget || c.referralType || '轉介服務') : `${c.serviceContent} 碼`}
                         </span>
                       </td>
                       <td className="px-6 py-4">

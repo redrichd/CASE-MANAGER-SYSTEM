@@ -50,6 +50,7 @@ export default function Units() {
   const [newServices, setNewServices] = useState(['BA']);
   const [newServiceAreas, setNewServiceAreas] = useState(['新莊區', '三重區', '永和區']);
   const [newIsStopped, setNewIsStopped] = useState(false);
+  const [newHasLetterOfIntent, setNewHasLetterOfIntent] = useState(false);
   const [newRating, setNewRating] = useState(0);
   const [newAuthor, setNewAuthor] = useState('');
   const [newComment, setNewComment] = useState('');
@@ -187,6 +188,7 @@ export default function Units() {
       services: newServices,
       serviceAreas: newServiceAreas,
       isStopped: newIsStopped,
+      hasLetterOfIntent: newHasLetterOfIntent,
       rating: newRating,
       comments: initialComments,
     });
@@ -196,6 +198,7 @@ export default function Units() {
     setNewServices(['BA']);
     setNewServiceAreas(['新莊區', '三重區', '永和區']);
     setNewIsStopped(false);
+    setNewHasLetterOfIntent(false);
     setNewRating(0);
     setNewAuthor('');
     setNewComment('');
@@ -409,13 +412,14 @@ export default function Units() {
                 <th className="px-6 py-4 text-center">指定它單位</th>
                 <th className="px-6 py-4 text-center">違規停派</th>
                 <th className="px-6 py-4">最後成功接案日</th>
+                <th className="px-6 py-4 text-center">意向書簽署</th>
                 <th className="px-6 py-4 text-right">合作狀態 / 操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredUnits.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="11" className="px-6 py-12 text-center text-slate-400">
                     目前無符合條件之單位
                   </td>
                 </tr>
@@ -495,6 +499,16 @@ export default function Units() {
                               : '無紀錄'}
                           </span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <label className="inline-flex items-center justify-center cursor-pointer select-none" title={u.hasLetterOfIntent ? "已簽署意向書 (點擊可切換)" : "未簽署意向書 (點擊可切換)"}>
+                          <input
+                            type="checkbox"
+                            checked={!!u.hasLetterOfIntent}
+                            onChange={(e) => updateUnit(u.id, { hasLetterOfIntent: e.target.checked })}
+                            className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          />
+                        </label>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2 items-center">
@@ -668,6 +682,18 @@ export default function Units() {
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 py-1">
+                <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newHasLetterOfIntent}
+                    onChange={(e) => setNewHasLetterOfIntent(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-650 focus:ring-purple-500"
+                  />
+                  意向書簽署
+                </label>
               </div>
 
               <div className="flex items-center gap-2 py-1">

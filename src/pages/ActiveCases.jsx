@@ -288,7 +288,7 @@ export default function ActiveCases() {
                                 key={item._recordId || `${item.id}_${item.serviceContent}_${idx}`}
                                 className="inline-block px-1.5 py-0.2 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-bold"
                               >
-                                {item.serviceContent}
+                                {item.serviceContent.startsWith('轉介_') ? (item.referralTarget || item.referralType || '轉介服務') : `${item.serviceContent} 碼`}
                               </span>
                             ))}
                           </div>
@@ -423,7 +423,7 @@ export default function ActiveCases() {
                               <div className="flex items-center gap-1.5">
                                 <span className="font-mono text-xs font-semibold text-slate-700">{subItem.id}</span>
                                 <span className="inline-block px-2 py-0.5 bg-purple-600 text-white rounded font-mono font-bold text-xs">
-                                  {subItem.serviceContent} 碼
+                                  {isSubReferral ? (subItem.referralTarget || subItem.referralType || '轉介服務') : `${subItem.serviceContent} 碼`}
                                 </span>
                               </div>
                             </td>

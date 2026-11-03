@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDeadline, calculateWorkdayOverdueDays } from '../../src/utils/deadlineCalculator';
+import { calculateDeadline, calculateWorkdayOverdueDays, calculateAnomalyDate } from '../../src/utils/deadlineCalculator';
 
 describe('Deadline Calculator', () => {
   it('should calculate deadline as +2 workdays if start time is before 12:00', () => {
@@ -80,14 +80,22 @@ describe('Deadline Calculator', () => {
     expect(deadline).toBe('2026-06-16T12:00');
   });
 
-  it('should calculate workday overdue days accurately excluding weekends/holidays with 4.5 limit', () => {
-    // Mon 2026-06-08 09:00 to Fri 2026-06-12 17:00 => 4.3 working days (<= 4.5, not overdue)
-    const result1 = calculateWorkdayOverdueDays('2026-06-08T09:00', '2026-06-12T17:00', 4.5);
+  it('should calculate workday overdue days with 0.5-day units and default 3-day limit', () => {
+    // 2.9 working days should round to 3.0 days in 0.5-day increments
+    // Mon 2026-06-08 09:00 to Thu 2026-06-11 09:00 => 3 working days (<= 3, not overdue)
+    const result1 = calculateWorkdayOverdueDays('2026-06-08T09:00', '2026-06-11T09:00');
+    expect(result1.workingDays).toBe(3);
     expect(result1.isOverdue).toBe(false);
 
-    // Mon 2026-06-08 09:00 to Mon 2026-06-15 09:00 => 5 working days (> 4.5, overdue)
-    const result2 = calculateWorkdayOverdueDays('2026-06-08T09:00', '2026-06-15T09:00', 4.5);
+    // Mon 2026-06-08 09:00 to Fri 2026-06-12 09:00 => 4 working days (> 3, overdue)
+    const result2 = calculateWorkdayOverdueDays('2026-06-08T09:00', '2026-06-12T09:00');
+    expect(result2.workingDays).toBe(4);
     expect(result2.isOverdue).toBe(true);
-    expect(result2.workingDays).toBe(5);
+  });
+
+  it('should calculate anomaly date as the 4th calendar day from notify date', () => {
+    // 2026/09/02 notify date -> 4th day is 2026/09/05 (09/02 + 3 days)
+    expect(calculateAnomalyDate('2026-09-02T10:50:00')).toBe('2026-09-05');
+    expect(calculateAnomalyDate('2026-06-08')).toBe('2026-06-11');
   });
 });

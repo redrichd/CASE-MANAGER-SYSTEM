@@ -43,13 +43,13 @@ export function calculateDeadline(startIsoString) {
 }
 
 /**
- * 計算服務單位回覆日與首次服務時間之間的工作天數，並判斷是否超過規定天數 (預設 4.5 個工作天)
+ * 計算服務單位回覆日與首次服務時間之間的工作天數，並判斷是否超過規定天數 (預設 3 個工作天，以半天 0.5 天為單位)
  * @param {string} startIso 起始時間 / 服務單位回覆日 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
  * @param {string} endIso 結束時間 / 首次服務日期 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
- * @param {number} limitDays 規定工作天上限 (預設 4.5 個工作天)
+ * @param {number} limitDays 規定工作天上限 (預設 3 個工作天)
  * @returns {{ overdueDays: number, isOverdue: boolean, workingDays: number }}
  */
-export function calculateWorkdayOverdueDays(startIso, endIso, limitDays = 4.5) {
+export function calculateWorkdayOverdueDays(startIso, endIso, limitDays = 3) {
   if (!startIso || !endIso) {
     return { overdueDays: 0, isOverdue: false, workingDays: 0 };
   }
@@ -92,11 +92,28 @@ export function calculateWorkdayOverdueDays(startIso, endIso, limitDays = 4.5) {
 
   const workingMs = Math.max(0, totalMs - nonWorkingMs);
   const rawWorkingDays = workingMs / (1000 * 60 * 60 * 24);
-  const workingDays = Math.round(rawWorkingDays * 10) / 10;
+  // 天數計算方式：一般是半天為一單位 (四捨五入至 0.5)
+  const workingDays = Math.round(rawWorkingDays * 2) / 2;
 
   const isOverdue = workingDays > limitDays;
   const overdueDays = workingDays;
 
   return { overdueDays, isOverdue, workingDays };
+}
+
+/**
+ * 計算照會後第 4 天的日期 (照會日當天為第 1 天，第 4 天即照會日 + 3 天)
+ * @param {string} aUnitNotifyDate 照會日期時間字串 (YYYY-MM-DDTHH:mm 或 YYYY-MM-DD)
+ * @returns {string} YYYY-MM-DD
+ */
+export function calculateAnomalyDate(aUnitNotifyDate) {
+  if (!aUnitNotifyDate) return '';
+  const d = new Date(aUnitNotifyDate);
+  if (isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + 3);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 

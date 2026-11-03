@@ -112,8 +112,11 @@ describe('CaseForm Integration Test', () => {
       fireEvent.change(firstServiceInput, { target: { value: '2026-06-15T09:00' } });
     });
 
-    // 驗證自動計算超過天數 (超過 4.5 天會顯示警告與天數)
-    expect(screen.getByText(/已超過 4.5 天進場/)).toBeInTheDocument();
+    // 驗證自動計算超過天數 (超過 3 天會顯示警告與天數，並自動填入第4天為異常發生日)
+    expect(screen.getByText(/已超過 3 天進場/)).toBeInTheDocument();
+
+    const anomalyDateInput = screen.getByLabelText(/異常發生日/);
+    expect(anomalyDateInput.value).toBe('2026-06-11');
 
     // 驗證原因分類選擇
     const reasonSelect = screen.getByLabelText(/原因分類/);

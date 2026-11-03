@@ -7,6 +7,7 @@ import { isFirebaseConfigured } from './services/firebase';
 import ActiveCases from './pages/ActiveCases';
 import ClosedCases from './pages/ClosedCases';
 import Units from './pages/Units';
+import ReferralUnits from './pages/ReferralUnits';
 import Staff from './pages/Staff';
 import ReportExportModal from './components/ReportExportModal';
 import { Heart, FileSpreadsheet } from 'lucide-react';
@@ -225,6 +226,17 @@ function AppContent() {
             </button>
             
             <button
+              onClick={() => setActiveTab('referralUnits')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                activeTab === 'referralUnits'
+                  ? 'bg-white text-[#1e3a8a] shadow-sm border border-slate-200/50'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              轉介單位
+            </button>
+            
+            <button
               onClick={() => setActiveTab('staff')}
               className={`px-6 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                 activeTab === 'staff'
@@ -254,6 +266,7 @@ function AppContent() {
           {activeTab === 'activeCases' && <ActiveCases />}
           {activeTab === 'closedCases' && <ClosedCases />}
           {activeTab === 'units' && <Units />}
+          {activeTab === 'referralUnits' && <ReferralUnits />}
           {activeTab === 'staff' && <Staff />}
         </div>
       </div>
