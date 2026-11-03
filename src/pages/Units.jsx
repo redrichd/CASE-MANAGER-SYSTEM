@@ -3,7 +3,7 @@ import { useUnits } from '../contexts/UnitContext';
 import { useCases } from '../contexts/CaseContext';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateUnitStats, sortUnits } from '../utils/unitSorter';
-import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Ban, CheckCircle, Calendar, X, Star, Edit3, Trash2, AlertTriangle, Building2, FileText, TrendingUp } from 'lucide-react';
 import { SERVICE_CONTENTS, SERVICE_AREAS } from '../constants/dispatchConstants';
 import UnitEditModal from '../components/UnitEditModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -265,10 +265,51 @@ export default function Units() {
   };
 
   const internalRate = getInternalRate();
+  const activeCount = units.filter((u) => !u.isStopped).length;
+  const letterCount = units.filter((u) => u.hasLetterOfIntent).length;
 
   return (
     <div className="space-y-6">
       
+      {/* 頂部數據概覽卡片 (儀表板功能，對應轉介單位頁面佈局) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">總派案單位</span>
+            <Building2 className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-2xl font-black text-slate-800">{units.length}</div>
+          <div className="text-xs text-slate-400 mt-1">登記之長照派案機構</div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">合作中單位</span>
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-black text-emerald-600">{activeCount}</div>
+          <div className="text-xs text-slate-400 mt-1">狀態正常可派案單位</div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">簽署意向書單位</span>
+            <FileText className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div className="text-2xl font-black text-indigo-600">{letterCount}</div>
+          <div className="text-xs text-slate-400 mt-1">已簽訂合作意向書單位</div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">BA 內轉率</span>
+            <TrendingUp className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-black text-emerald-600 font-mono">{internalRate}%</div>
+          <div className="text-xs text-slate-400 mt-1">全案 BA 新案接案比例</div>
+        </div>
+      </div>
+
       {/* 頂部操作列 */}
       <div className="flex flex-col sm:flex-row justify-between items-center bg-[#f8fafc] border border-slate-200 rounded-xl p-3 mb-4 gap-4">
         <div className="flex items-center gap-3">
